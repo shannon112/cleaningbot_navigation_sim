@@ -1,5 +1,14 @@
-## Notes
-- Curvature
+# cleaningbot_navigation_sim
+description  
+demo img  
+
+# 1. Build & Run
+dependencies install cmd  
+build cmd  
+run cmd  
+
+# 2. Mathematic Notes
+## Curvature
   - curvature definition: `k = 1/R` [1]
     - ![圖片](https://github.com/user-attachments/assets/26aaa8cc-257e-4ff6-a8b8-8c141269a21f)
   - three-point curvature approximation `k ≈ 4S/abc` or `k ≈ 2θ/(a+b)` [2][3]
@@ -12,13 +21,16 @@
     - `avg_len = (|vecA|+|vecB|)/2 = (a+b)/2`
     - `k1 ≈ θ/avg_len`
     - `k1 ≈ 2* arccos(vecA•vecB/|vecA||vecB|) / (|vecA|+|vecB|) `
-- Length of the path/trajectory/arc
+## Length of the path/trajectory/arc
   - `L ≈ sum(|veci|), i=[a,b]` [4]
     - ![圖片](https://github.com/user-attachments/assets/cfa7883c-0693-4996-9b1c-ec68789529ec)
+## Area of the path/trajectory/arc
+  - `A = L*W`, W is the footprint width `W = sqrt((x0-x1)^2+(x1-y1)^2)`, while this does not consider about the overlapping area
+## Duration of traversing the path/trajectory/arc
+  - `dt = dL / dv`
+  - `t = sum(|veci|/vi), i=[a,b]`
 
-
-
-## Ref
+# 3. Ref
 - [1] https://en.wikipedia.org/wiki/Curvature
 - [2] https://math.stackexchange.com/questions/2445037/numerical-approach-to-find-curvature
 - [3] Belyaev, Alexander G. "A note on invariant three-point curvature approximations (singularity theory and differential equations)." 1111 (1999): 157-164.
