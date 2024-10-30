@@ -1,5 +1,3 @@
-![圖片](https://github.com/user-attachments/assets/7b805fbd-6393-48e5-8875-4195b0bdf019)# cleaningbot_navigation_sim
-
 ## Notes
 - Curvature
   - curvature definition: `k = 1/R` [1]
