@@ -1,0 +1,4 @@
+string plan_json
+---
+bool is_successfully_loaded
+uint32 num_path_samples

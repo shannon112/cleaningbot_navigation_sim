@@ -10,10 +10,10 @@ run cmd
 # 2. Mathematic Notes
 ## Curvature
   - curvature definition: `k = 1/R` [1]
-    - ![圖片](https://github.com/user-attachments/assets/26aaa8cc-257e-4ff6-a8b8-8c141269a21f)
+    - ![img](https://github.com/user-attachments/assets/26aaa8cc-257e-4ff6-a8b8-8c141269a21f)
   - three-point curvature approximation `k ≈ 4S/abc` or `k ≈ 2θ/(a+b)` [2][3]
-    - ![圖片](https://github.com/user-attachments/assets/b76ed77a-2477-4ee0-b0e9-a3734f7a0c11)
-    - ![圖片](https://github.com/user-attachments/assets/0680bda3-0907-434f-ba11-c107d2d3b506)
+    - ![img](https://github.com/user-attachments/assets/b76ed77a-2477-4ee0-b0e9-a3734f7a0c11)
+    - ![img](https://github.com/user-attachments/assets/0680bda3-0907-434f-ba11-c107d2d3b506)
   - so that given `[x0,y0], [x1,y1], [x2, y2]` compute the `k1`:
     - `vecA = [x1-x0, y1-y0]`
     - `vecB = [x2-x1, y2-y1]`
@@ -23,7 +23,7 @@ run cmd
     - `k1 ≈ 2* arccos(vecA•vecB/|vecA||vecB|) / (|vecA|+|vecB|) `
 ## Length of the path/trajectory/arc
   - `L ≈ sum(|veci|), i=[a,b]` [4]
-    - ![圖片](https://github.com/user-attachments/assets/cfa7883c-0693-4996-9b1c-ec68789529ec)
+    - ![img](https://github.com/user-attachments/assets/cfa7883c-0693-4996-9b1c-ec68789529ec)
 ## Area of the path/trajectory/arc
   - `A = L*W`, W is the footprint width `W = sqrt((x0-x1)^2+(x1-y1)^2)`, while this does not consider about the overlapping area
 ## Duration of traversing the path/trajectory/arc
