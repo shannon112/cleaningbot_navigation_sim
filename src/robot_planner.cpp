@@ -1,29 +1,87 @@
-#include "rclcpp/rclcpp.hpp"
 #include "cleaningbot_navigation_sim/srv/load_plan_json.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/string.hpp"
 
+#include <chrono>
+#include <fstream>
 #include <memory>
+#include <nlohmann/json.hpp>
 
-void LoadPlanJson(const std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Request> request,
-                         std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Response> response)
+using namespace std::chrono_literals;
+using json = nlohmann::json;
+
+class RobotPlanner : public rclcpp::Node
 {
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Load %s", request->plan_json);
+public:
+  RobotPlanner() : Node("robot_planner")
+  {
+    publisher_ = this->create_publisher<std_msgs::msg::String>("status", 10);
+    timer_ = this->create_wall_timer(500ms, std::bind(&RobotPlanner::timer_callback, this));
+    service_ = this->create_service<cleaningbot_navigation_sim::srv::LoadPlanJson>(
+        "load_plan_json", std::bind(&RobotPlanner::load_plan_json, this, std::placeholders::_1, std::placeholders::_2));
+  }
 
-  response->is_successfully_loaded = true;
-  response->num_path_samples = 0;
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading is %s, there are %u waypoints", response->is_successfully_loaded ? "success" : "failed", response->num_path_samples);
-}
+private:
+  void timer_callback()
+  {
+    auto message = std_msgs::msg::String();
+    message.data = "Hello, world! " + std::to_string(count_++);
+    RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
+    publisher_->publish(message);
+  }
 
-int main(int argc, char **argv)
+  void load_plan_json(const std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Request> request,
+                      std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Response> response)
+  {
+    std::string planJsonStr = request->plan_json;
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Load %s", request->plan_json);
+
+    std::ifstream file(planJsonStr);
+    if (!file.is_open())
+    {
+      response->is_successfully_loaded = false;
+      response->num_path_samples = 0;
+      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to open file");
+      return;
+    }
+
+    json jsonData;
+    file >> jsonData;
+
+    try
+    {
+      robotContourPoints_ = jsonData["robot"];
+      robotGadgetPoints_ = jsonData["cleaning_gadget"];
+      for (const auto& point : jsonData["path"])
+      {
+        std::array<float, 2> pointAF2 = point;
+        waypoints_.push_back(pointAF2);
+      }
+    }
+    catch (json::exception& e)
+    {
+      std::cerr << "JSON parsing error: " << e.what() << '\n';
+    }
+
+    response->is_successfully_loaded = true;
+    response->num_path_samples = waypoints_.size();
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading is %s, there are %u waypoints",
+                response->is_successfully_loaded ? "success" : "failed", response->num_path_samples);
+  }
+
+  int count_ = 0;
+  rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
+  rclcpp::Service<cleaningbot_navigation_sim::srv::LoadPlanJson>::SharedPtr service_;
+  std::array<std::array<float, 2>, 4> robotContourPoints_;
+  std::array<std::array<float, 2>, 2> robotGadgetPoints_;
+  std::vector<std::array<float, 2>> waypoints_;
+};
+
+int main(int argc, char* argv[])
 {
   rclcpp::init(argc, argv);
-
-  std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("load_plan_json_server");
-
-  rclcpp::Service<cleaningbot_navigation_sim::srv::LoadPlanJson>::SharedPtr service =
-    node->create_service<cleaningbot_navigation_sim::srv::LoadPlanJson>("load_plan_json", &LoadPlanJson);
-
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready.");
-
-  rclcpp::spin(node);
+  rclcpp::spin(std::make_shared<RobotPlanner>());
   rclcpp::shutdown();
+  return 0;
 }

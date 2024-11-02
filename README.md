@@ -3,6 +3,10 @@ description
 demo img  
 
 # 1. Build & Run
+```
+sudo apt install nlohmann-json3-dev
+sudo apt install clang-format-9
+```
 dependencies install cmd  
 build cmd  
 run cmd  

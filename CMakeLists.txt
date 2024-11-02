@@ -19,6 +19,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 # customized msg/srv
 rosidl_generate_interfaces(${PROJECT_NAME}
@@ -27,7 +28,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
 # robot_planner node
 add_executable(robot_planner src/robot_planner.cpp)
-ament_target_dependencies(robot_planner rclcpp)
+ament_target_dependencies(robot_planner rclcpp nlohmann_json)
 rosidl_target_interfaces(robot_planner
       ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
