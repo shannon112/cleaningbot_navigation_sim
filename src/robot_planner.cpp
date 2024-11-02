@@ -27,22 +27,17 @@ private:
     auto message = std_msgs::msg::String();
     message.data = "Hello, world! " + std::to_string(count_++);
     RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
+    // compute points, velocity
     publisher_->publish(message);
   }
 
-  void load_plan_json(const std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Request> request,
-                      std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Response> response)
+  bool parse_plan_json(const std::string planJsonStr)
   {
-    const std::string planJsonStr = request->plan_json;
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading... %s", request->plan_json.c_str());
-
     std::ifstream file(planJsonStr);
     if (!file.is_open())
     {
-      response->is_successfully_loaded = false;
-      response->num_path_samples = 0;
       RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to open file");
-      return;
+      return false;
     }
 
     json jsonData;
@@ -60,13 +55,22 @@ private:
     catch (json::exception& e)
     {
       RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "JSON parsing error: %s", e.what());
+      return false;
     }
 
     std::cout << robotContourPoints_[0][0] << robotContourPoints_[0][1] << std::endl;
     std::cout << robotGadgetPoints_[0][0] << robotGadgetPoints_[0][1] << std::endl;
     std::cout << waypoints_[0][0] << waypoints_[0][1] << std::endl;
+    return true;
+  }
 
-    response->is_successfully_loaded = true;
+  void load_plan_json(const std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Request> request,
+                      std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Response> response)
+  {
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading... %s", request->plan_json.c_str());
+    const bool isSuccessfullyLoaded = parse_plan_json(request->plan_json);
+
+    response->is_successfully_loaded = isSuccessfullyLoaded;
     response->num_path_samples = waypoints_.size();
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading is %s, there are %u waypoints",
                 response->is_successfully_loaded ? "success" : "failed", response->num_path_samples);
