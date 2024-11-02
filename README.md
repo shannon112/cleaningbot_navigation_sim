@@ -3,14 +3,24 @@ description
 demo img  
 
 # 1. Build & Run
+dependencies cmd
 ```
 sudo apt install nlohmann-json3-dev
 sudo apt install clang-format-9
 ```
-dependencies install cmd  
 build cmd  
+```
+colcon build --symlink-install 
+```
 run cmd  
-
+```
+ros2 run cleaningbot_navigation_sim robot_planner 
+ros2 service call /load_plan_json cleaningbot_navigation_sim/srv/LoadPlanJson "{"plan_json": "/home/shanlee/ros2_ws/src/cleaningbot_navigation_sim/short.json"}"
+```
+debug cmd
+```
+clang-format-9 src/robot_planner.cpp -i
+```
 # 2. Mathematic Notes
 ## Curvature
   - curvature definition: `k = 1/R` [1]

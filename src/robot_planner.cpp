@@ -33,8 +33,8 @@ private:
   void load_plan_json(const std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Request> request,
                       std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Response> response)
   {
-    std::string planJsonStr = request->plan_json;
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Load %s", request->plan_json);
+    const std::string planJsonStr = request->plan_json;
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading... %s", request->plan_json.c_str());
 
     std::ifstream file(planJsonStr);
     if (!file.is_open())
@@ -52,16 +52,19 @@ private:
     {
       robotContourPoints_ = jsonData["robot"];
       robotGadgetPoints_ = jsonData["cleaning_gadget"];
-      for (const auto& point : jsonData["path"])
+      for (const std::array<float, 2>& point : jsonData["path"])
       {
-        std::array<float, 2> pointAF2 = point;
-        waypoints_.push_back(pointAF2);
+        waypoints_.push_back(point);
       }
     }
     catch (json::exception& e)
     {
-      std::cerr << "JSON parsing error: " << e.what() << '\n';
+      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "JSON parsing error: %s", e.what());
     }
+
+    std::cout << robotContourPoints_[0][0] << robotContourPoints_[0][1] << std::endl;
+    std::cout << robotGadgetPoints_[0][0] << robotGadgetPoints_[0][1] << std::endl;
+    std::cout << waypoints_[0][0] << waypoints_[0][1] << std::endl;
 
     response->is_successfully_loaded = true;
     response->num_path_samples = waypoints_.size();
