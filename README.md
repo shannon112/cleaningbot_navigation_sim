@@ -43,9 +43,15 @@ clang-format-9 src/robot_planner.cpp -i
 ## Duration of traversing the path/trajectory/arc
   - `dt = dL / dv`
   - `t = sum(|veci|/vi), i=[a,b]`
+## Interpolation
+  - ![img](https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Comparison_of_1D_and_2D_interpolation.svg/375px-Comparison_of_1D_and_2D_interpolation.svg.png) [5]
+  - cublic spline interpolation [6]
+  - ![image](https://github.com/user-attachments/assets/92dc1118-157d-4641-ad05-e6f7bff5e9b5)
 
 # 3. Ref
 - [1] https://en.wikipedia.org/wiki/Curvature
 - [2] https://math.stackexchange.com/questions/2445037/numerical-approach-to-find-curvature
 - [3] Belyaev, Alexander G. "A note on invariant three-point curvature approximations (singularity theory and differential equations)." 1111 (1999): 157-164.
 - [4] https://tutorial.math.lamar.edu/classes/calcii/arclength.aspx
+- [5] https://en.wikipedia.org/wiki/Bicubic_interpolation
+- [6] https://en.wikipedia.org/wiki/Cubic_Hermite_spline
