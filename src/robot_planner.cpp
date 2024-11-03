@@ -36,7 +36,7 @@ private:
     std::ifstream file(planJsonStr);
     if (!file.is_open())
     {
-      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to open file");
+      RCLCPP_ERROR(this->get_logger(), "Failed to open file");
       return false;
     }
 
@@ -54,25 +54,30 @@ private:
     }
     catch (json::exception& e)
     {
-      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "JSON parsing error: %s", e.what());
+      RCLCPP_ERROR(this->get_logger(), "JSON parsing error: %s", e.what());
       return false;
     }
 
-    std::cout << robotContourPoints_[0][0] << robotContourPoints_[0][1] << std::endl;
-    std::cout << robotGadgetPoints_[0][0] << robotGadgetPoints_[0][1] << std::endl;
-    std::cout << waypoints_[0][0] << waypoints_[0][1] << std::endl;
+    if (robotContourPoints_.size() > 0 && robotGadgetPoints_.size() > 0 && waypoints_.size() > 0)
+    {
+      RCLCPP_INFO(this->get_logger(), "read robot [[%f, %f], ...]", robotContourPoints_[0][0],
+                  robotContourPoints_[0][1]);
+      RCLCPP_INFO(this->get_logger(), "read cleaning_gadget [[%f, %f], ...]", robotGadgetPoints_[0][0],
+                  robotGadgetPoints_[0][1]);
+      RCLCPP_INFO(this->get_logger(), "read path [[%f, %f], ...]", waypoints_[0][0], waypoints_[0][1]);
+    }
     return true;
   }
 
   void load_plan_json(const std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Request> request,
                       std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Response> response)
   {
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading... %s", request->plan_json.c_str());
+    RCLCPP_INFO(this->get_logger(), "Loading... %s", request->plan_json.c_str());
     const bool isSuccessfullyLoaded = parse_plan_json(request->plan_json);
 
     response->is_successfully_loaded = isSuccessfullyLoaded;
     response->num_path_samples = waypoints_.size();
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loading is %s, there are %u waypoints",
+    RCLCPP_INFO(this->get_logger(), "Loading is %s, there are %u waypoints",
                 response->is_successfully_loaded ? "success" : "failed", response->num_path_samples);
   }
 
