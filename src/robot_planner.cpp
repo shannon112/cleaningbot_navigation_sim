@@ -11,42 +11,60 @@ using namespace std::chrono_literals;
 using json = nlohmann::json;
 using Point2F = std::array<float, 2>;
 using Vec2F = std::array<float, 2>;
+using Point2I = std::array<int, 2>;
 
-// Hermite basis functions
-float h00(float t)
+Vec2F getVec2F(const Point2F& a, const Point2F& b)
 {
-  return 2 * t * t * t - 3 * t * t + 1;
-}
-float h10(float t)
-{
-  return t * t * t - 2 * t * t + t;
-}
-float h01(float t)
-{
-  return -2 * t * t * t + 3 * t * t;
-}
-float h11(float t)
-{
-  return t * t * t - t * t;
+  return { b[0] - a[0], b[1] - a[1] };
 }
 
-// Function to interpolate between two points using Hermite cubic interpolation
-Point2F cubicHermiteInterpolation(const Point2F& p0, const Point2F& p1, const Point2F& m0, const Point2F& m1, float t)
-{
-  float x = h00(t) * p0[0] + h10(t) * m0[0] + h01(t) * p1[0] + h11(t) * m1[0];
-  float y = h00(t) * p0[1] + h10(t) * m0[1] + h01(t) * p1[1] + h11(t) * m1[1];
-  return { x, y };
-}
-
-float dot(Vec2F vecA, Vec2F vecB)
+float dot(const Vec2F& vecA, const Vec2F& vecB)
 {
   return vecA[0] * vecB[0] + vecA[1] * vecB[1];
 }
 
-float len(Vec2F vec)
+float cross(const Vec2F& vecA, const Vec2F& vecB)
+{
+  return vecA[0] * vecB[1] - vecA[1] * vecB[0];
+}
+
+float len(const Vec2F& vec)
 {
   return sqrt(pow(vec[0], 2) + pow(vec[1], 2));
 }
+
+float distance(const Point2F& a, const Point2F& b)
+{
+  return len(getVec2F(a, b));
+}
+
+Vec2F devide(const Vec2F& vec, const float num)
+{
+  return { vec[0] / num, vec[1] / num };
+}
+
+Vec2F multiply(const Vec2F& vec, const float num)
+{
+  return { vec[0] * num, vec[1] * num };
+}
+
+Vec2F plus(const Vec2F& vecA, const Vec2F& vecB)
+{
+  return { vecA[0] + vecB[0], vecA[1] + vecB[1] };
+}
+
+Vec2F minus(const Vec2F& vecA, const Vec2F& vecB)
+{
+  return { vecA[0] - vecB[0], vecA[1] - vecB[1] };
+}
+
+struct OccupancyMap
+{
+  std::vector<std::vector<bool>> grids;
+  Point2F topleftOrigin = { 0.f, 0.f };
+  float gridSize = 0.01f;
+  // the first grid including value at ([0, gridSize), [0, gridSize))
+};
 
 class RobotPlanner : public rclcpp::Node
 {
@@ -65,9 +83,13 @@ private:
     rclcpp::Time timestamp = this->get_clock()->now();
     RCLCPP_INFO(this->get_logger(), "Message timestamp: %lf", timestamp.seconds());
 
+    if (waypoints_.empty())
+    {
+      return;  // waiting for data inputs
+    }
     // compute points, velocity
     auto message = std_msgs::msg::String();
-    message.data = "Hello, world! " + std::to_string(count_++);
+    message.data = "Hello, world! ";
     RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
     publisher_->publish(message);
   }
@@ -125,23 +147,15 @@ private:
     RCLCPP_INFO(this->get_logger(), "Loading is %s, there are %u waypoints",
                 response->is_successfully_loaded ? "success" : "failed", response->num_path_samples);
 
-    estimateVelocities();
+    estimateTrajectory();
+    RCLCPP_INFO(this->get_logger(), "Trajectory summary: distance=%f, duration=%f", distanceSum_, durationSum_);
+
+    estimateMap();
+    RCLCPP_INFO(this->get_logger(), "Map summary: num of occupied grids=%zu, covered area=%f", numOccGrids_, areaSum_);
   }
 
-  void estimateVelocities()
+  void estimateTrajectory()
   {
-    /*
-    Point2F beginningWaypoint = {};
-    Point2F endingWaypoint = {};
-    // extrapolation
-    Point2F p0 = {0.0f, 0.0f};  // Starting point
-    Point2F p1 = {1.0f, 1.0f};  // Ending point
-    Point2F m0 = {1.0f, 0.0f};  // Tangent at p0
-    Point2F m1 = {1.0f, 1.0f};  // Tangent at p1
-    float t = 0.5f; // Interpolation parameter between 0 and 1
-    Point2F interpolatedPoint = cubicHermiteInterpolation(p0, p1, m0, m1, t);
-    */
-
     velocities_.reserve(waypoints_.size());
     velocities_[0] = velocityMin_;            // assume that initial velocity is velocityMin_
     velocities_[velocities_.size() - 1] = 0;  // assume that robot stops at the end
@@ -176,8 +190,6 @@ private:
       durations_[i] = distances_[i] / velocities_[i];
       durationSum_ += durations_[i];
     }
-
-    RCLCPP_INFO(this->get_logger(), "distanceSum_ durationSum_ [%f, %f]", distanceSum_, durationSum_);
   }
 
   float curvatureToVelocity(const float curvature)
@@ -197,20 +209,91 @@ private:
     }
   }
 
-  int count_ = 0;
-  bool isTrajectoryReady = false;
+  void estimateMap()
+  {
+    float leftMost = std::numeric_limits<float>::max();
+    float rightMost = std::numeric_limits<float>::min();
+    float topMost = std::numeric_limits<float>::min();
+    float bottomMost = std::numeric_limits<float>::max();
+    for (std::size_t i = 0; i < waypoints_.size(); i++)
+    {
+      leftMost = std::min(leftMost, waypoints_[i][0]);
+      rightMost = std::max(rightMost, waypoints_[i][0]);
+      topMost = std::min(bottomMost, waypoints_[i][1]);
+      bottomMost = std::max(topMost, waypoints_[i][1]);
+    }
+
+    const float gadgetLen = distance(robotGadgetPoints_[0], robotGadgetPoints_[1]);
+    leftMost -= 0.5f * gadgetLen;
+    topMost -= 0.5f * gadgetLen;
+    rightMost += 0.5f * gadgetLen;
+    bottomMost += 0.5f * gadgetLen;
+
+    const int leftMostGridIdx = floor(leftMost / map.gridSize);
+    const int topMostGridIdx = floor(topMost / map.gridSize);
+    const int rightMostGridIdx = floor(rightMost / map.gridSize);
+    const int bottomMostGridIdx = floor(bottomMost / map.gridSize);
+
+    map.topleftOrigin[0] = leftMostGridIdx * map.gridSize;
+    map.topleftOrigin[1] = topMostGridIdx * map.gridSize;
+    const int width = rightMostGridIdx - leftMostGridIdx + 1;
+    const int height = bottomMostGridIdx - topMostGridIdx + 1;
+    map.grids = std::vector<std::vector<bool>>(height, std::vector<bool>(width, false));
+
+    for (std::size_t i = 0; i < waypoints_.size() - 1; i++)
+    {
+      Vec2F verticalVec = getVec2F(waypoints_[i], waypoints_[i + 1]);
+      Vec2F horizontalVec = { verticalVec[1], -verticalVec[0] };
+      Vec2F horizontalUnitVec = devide(horizontalVec, len(horizontalVec));
+      Vec2F horizontalUnitLeftVec =
+          cross(verticalVec, horizontalUnitVec) > 0 ? horizontalUnitVec : multiply(horizontalUnitVec, -1.f);
+
+      // get four points rectangle for the segment
+      Point2F bottomleft = plus(waypoints_[i], multiply(horizontalUnitLeftVec, 0.5f * gadgetLen));
+      Point2F bottomright = plus(waypoints_[i], multiply(horizontalUnitLeftVec, -0.5f * gadgetLen));
+      Point2F topleft = plus(waypoints_[i + 1], multiply(horizontalUnitLeftVec, 0.5f * gadgetLen));
+      Point2F topright = plus(waypoints_[i + 1], multiply(horizontalUnitLeftVec, -0.5f * gadgetLen));
+
+      // it can then be four lines (vec)
+      Vec2F rightVec = minus(topright, bottomright);
+      Vec2F topVec = minus(topleft, topright);
+      Vec2F lefVec = minus(bottomleft, topleft);
+      Vec2F bottomtVec = minus(bottomright, bottomleft);
+
+      // get bounding box for the rectangle
+      float maxX = std::max(std::max(topleft[0], topright[0]), std::max(bottomleft[0], bottomright[0]));
+
+      // iterate through all grids in bbox if the grid center located in four lines then mark as true. boundary cross
+      // target >0 then inside cache the updated ids
+
+      // get four points for footprint
+    }
+  }
+
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
   rclcpp::Service<cleaningbot_navigation_sim::srv::LoadPlanJson>::SharedPtr service_;
+
+  // inputs
   std::array<Point2F, 4> robotContourPoints_;
   std::array<Point2F, 2> robotGadgetPoints_;
   std::vector<Point2F> waypoints_;
+
+  // data
   std::vector<float> velocities_;
   std::vector<float> distances_;
-  float distanceSum_ = 0.f;
   std::vector<float> durations_;
-  float durationSum_ = 0.f;
+  std::vector<std::array<Point2F, 4>> footprints_;
+  std::vector<std::vector<Point2I>> updatedGridIds_;
+  OccupancyMap map;
 
+  // ans
+  float distanceSum_ = 0.f;
+  float durationSum_ = 0.f;
+  float areaSum_ = 0.f;
+  std::size_t numOccGrids_ = 0;
+
+  // configs
   const float curvatureCritical_ = 0.5;
   const float curvatureMax_ = 10;
   const float velocityMin_ = 0.15;
