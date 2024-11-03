@@ -47,6 +47,13 @@ clang-format-9 src/robot_planner.cpp -i
   - ![img](https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Comparison_of_1D_and_2D_interpolation.svg/375px-Comparison_of_1D_and_2D_interpolation.svg.png) [5]
   - cublic spline interpolation [6]
   - ![image](https://github.com/user-attachments/assets/92dc1118-157d-4641-ad05-e6f7bff5e9b5)
+## Flood-Fill algo
+  - ![image](https://github.com/user-attachments/assets/c84cce9a-05fe-44c6-83fc-1fb4a25c3fbb) [7]
+  - ![img](https://upload.wikimedia.org/wikipedia/commons/7/7e/Recursive_Flood_Fill_4_%28aka%29.gif)
+## DDA Raycasting algo
+  - DDA is a fast algorithm typically used on square grids to find which squares a line hits (for example to draw a line on a screen, which is a grid of square pixels). [8]
+  - ![image](https://github.com/user-attachments/assets/c4a7636c-8a9f-427d-a34a-70a50c41db60)
+
 
 # 3. Ref
 - [1] https://en.wikipedia.org/wiki/Curvature
@@ -55,3 +62,5 @@ clang-format-9 src/robot_planner.cpp -i
 - [4] https://tutorial.math.lamar.edu/classes/calcii/arclength.aspx
 - [5] https://en.wikipedia.org/wiki/Bicubic_interpolation
 - [6] https://en.wikipedia.org/wiki/Cubic_Hermite_spline
+- [7] https://en.wikipedia.org/wiki/Flood_fill
+- [8] https://lodev.org/cgtutor/raycasting.html
