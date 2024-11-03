@@ -7,6 +7,7 @@ dependencies cmd
 ```
 sudo apt install nlohmann-json3-dev
 sudo apt install clang-format-9
+sudo apt install libeigen3-dev
 ```
 build cmd  
 ```
