@@ -3,7 +3,9 @@
 
 #include <QWidget>
 #include <Eigen/Dense>
-#include <vector>
+#include "cleaningbot_navigation_sim/robot_status.h"
+#include "cleaningbot_navigation_sim/occupancy_map.h"
+#include <optional>
 
 class RobotVis : public QWidget
 {
@@ -11,19 +13,19 @@ class RobotVis : public QWidget
 public:
   RobotVis(QWidget* parent = nullptr);
   ~RobotVis();
-
-  void updateMap(const Eigen::Vector2f& origin, const Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>& grid,
-                 const std::vector<Eigen::Vector2f>& path, const Eigen::Vector2f& position, const float mapGridSize);
+  QPoint getPos(const Eigen::Vector2f& point);
+  void setupVis(const OccupancyMap& map);
+  void updateVis(const Status& status);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
 
 private:
+  std::optional<Status> status_;
+  float gridSize_;
+  Eigen::Vector2i mapSizeWH_;
   Eigen::Vector2f origin_;
-  Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> grid_;
-  std::vector<Eigen::Vector2f> path_;
-  Eigen::Vector2f position_;
-  float mapGridSize_;
+  const int paddingHeightForText = 100;
 };
 
 #endif  // ROBOT_VIS_H

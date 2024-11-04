@@ -5,33 +5,13 @@
 
 #include "cleaningbot_navigation_sim/srv/load_plan_json.hpp"
 #include "cleaningbot_navigation_sim/robot_vis.h"
+#include "cleaningbot_navigation_sim/robot_status.h"
+#include "cleaningbot_navigation_sim/occupancy_map.h"
 
 #include <Eigen/Dense>
 #include <chrono>
 
 using namespace std::chrono_literals;
-
-struct OccupancyMap
-{
-  Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> grids;
-  Eigen::Vector2f origin = { 0.f, 0.f };
-  float gridSize = 0.01f;
-  // the first grid including value at ([0, gridSize), [0, gridSize))
-};
-
-struct Status
-{
-  Eigen::Vector2f position = {};
-  float velocity = 0.f;
-  float distanceToNext = 0.f;
-  float distanceSoFar = 0.f;
-  float durationToNext = 0.f;
-  float durationSoFar = 0.f;
-  std::vector<Eigen::Vector2i> newCoveredGridIdsToNext;
-  float newCoveredAreaToNext = 0.f;
-  float coveredAreaSoFar = 0.f;
-  std::array<Eigen::Vector2f, 4> footprint;
-};
 
 class RobotPlanner : public rclcpp::Node
 {
@@ -44,6 +24,7 @@ public:
   float estimateVelocity();
   float curvatureToVelocity(const float curvature);
   std::vector<Eigen::Vector2i> estimateNewCoveredGridIdsToNext();
+  std::array<Eigen::Vector2f, 2> estimateGadget();
   std::array<Eigen::Vector2f, 4> estimateFootprint();
 
 private:
@@ -70,7 +51,7 @@ private:
   const float curvatureMax_ = 10.f;
   const float velocityMin_ = 0.15f;
   const float velocityMax_ = 1.1f;
-  const std::chrono::milliseconds samplingTime_ = 10ms;
+  const std::chrono::milliseconds samplingTime_ = 500ms;
   const float mapGridSize_ = 0.01f;
 };
 

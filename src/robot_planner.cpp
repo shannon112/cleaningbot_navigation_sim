@@ -30,6 +30,7 @@ void RobotPlanner::loadPlanJson(const std::shared_ptr<cleaningbot_navigation_sim
               response->is_successfully_loaded ? "success" : "failed", response->num_path_samples);
 
   constructMap();
+  widget_->setupVis(map_);
 }
 
 bool RobotPlanner::parsePlanJson(const std::string planJsonStr)
@@ -98,11 +99,14 @@ void RobotPlanner::constructMap()
   {
     leftMost = std::min(leftMost, waypoints_[i][0]);
     rightMost = std::max(rightMost, waypoints_[i][0]);
-    topMost = std::min(bottomMost, waypoints_[i][1]);
-    bottomMost = std::max(topMost, waypoints_[i][1]);
+    topMost = std::max(topMost, waypoints_[i][1]);
+    bottomMost = std::min(bottomMost, waypoints_[i][1]);
   }
 
-  const float linkMaxLen = 10.f;  // std::max(robotGadgetPoints_[0].norm(), robotGadgetPoints_[1].norm());
+  std::vector<float> robotPointLens = { robotGadgetPoints_[0].norm(),  robotGadgetPoints_[1].norm(),
+                                        robotContourPoints_[0].norm(), robotContourPoints_[1].norm(),
+                                        robotContourPoints_[2].norm(), robotContourPoints_[3].norm() };
+  float linkMaxLen = *std::max_element(robotPointLens.begin(), robotPointLens.end());
   const Eigen::Vector2f bottomleftMostPoint(leftMost - linkMaxLen, bottomMost - linkMaxLen);
   const Eigen::Vector2f topRightMostPoint(rightMost + linkMaxLen, topMost + linkMaxLen);
 
@@ -111,7 +115,7 @@ void RobotPlanner::constructMap()
 
   map_.origin = bottomleftMostGridIdx.cast<float>() * map_.gridSize;
   const Eigen::Vector2i heightWidth = topRightGridIdx - bottomleftMostGridIdx + Eigen::Vector2i(1, 1);
-  map_.grids = Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>::Zero(heightWidth[0], heightWidth[1]);
+  map_.grids = Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>::Zero(heightWidth[1], heightWidth[0]);
   RCLCPP_INFO(this->get_logger(), "Map origin (%f, %f), Dimension (%d, %d), Grid size %f", map_.origin[0],
               map_.origin[1], map_.grids.rows(), map_.grids.cols(), map_.gridSize);
 }
@@ -195,21 +199,21 @@ std::vector<Eigen::Vector2i> RobotPlanner::estimateNewCoveredGridIdsToNext()
   // mark gridIds on map
   for (const auto gridId : prevStatus_.newCoveredGridIdsToNext)
   {
-    map_.grids(gridId[0], gridId[1]) = true;
+    map_.grids(gridId[1], gridId[0]) = true;  // rowId, colId
   }
 
   // get covered area for next iteration
   std::vector<Eigen::Vector2i> newCoveredGridIdsToNext;
-  for (int x = minXIdx; x <= maxXIdx; x++)
+  for (int x = minXIdx; x <= maxXIdx; x++)  // cols
   {
-    for (int y = minYIdx; y <= maxYIdx; y++)
+    for (int y = minYIdx; y <= maxYIdx; y++)  // rows
     {
       const Eigen::Vector2f gridCenter = map_.origin + Eigen::Vector2i(x, y).cast<float>() * map_.gridSize +
                                          Eigen::Vector2f(map_.gridSize * 0.5f, map_.gridSize * 0.5f);
       const bool isCovered =
           cross2d(rightVec, (gridCenter - bottomright)) >= 0.f && cross2d(topVec, (gridCenter - topright)) >= 0.f &&
           cross2d(leftVec, (gridCenter - topleft)) >= 0.f && cross2d(bottomtVec, (gridCenter - bottomleft)) >= 0.f;
-      if (isCovered && !map_.grids(x, y))
+      if (isCovered && !map_.grids(y, x))  // rowId, colId
       {
         newCoveredGridIdsToNext.push_back(Eigen::Vector2i(x, y));
       }
@@ -223,12 +227,22 @@ std::array<Eigen::Vector2f, 4> RobotPlanner::estimateFootprint()
 {
   std::array<Eigen::Vector2f, 4> footprint;
   const Eigen::Vector2f translationVec = waypoints_[curIdx_ + 1] - waypoints_[curIdx_];
-  const Eigen::Rotation2D<float> rotationMat(atan(translationVec[1] / translationVec[0]));
+  const Eigen::Rotation2D<float> rotationMat(std::atan2(translationVec[1], translationVec[0]));
   for (int i = 0; i < 4; i++)
   {
     footprint[i] = rotationMat * robotContourPoints_[i] + waypoints_[curIdx_];
   }
   return footprint;
+}
+
+std::array<Eigen::Vector2f, 2> RobotPlanner::estimateGadget()
+{
+  std::array<Eigen::Vector2f, 2> gadget;
+  const Eigen::Vector2f translationVec = waypoints_[curIdx_ + 1] - waypoints_[curIdx_];
+  const Eigen::Rotation2D<float> rotationMat(std::atan2(translationVec[1], translationVec[0]));
+  gadget[0] = rotationMat * robotGadgetPoints_[0] + waypoints_[curIdx_];
+  gadget[1] = rotationMat * robotGadgetPoints_[1] + waypoints_[curIdx_];
+  return gadget;
 }
 
 void RobotPlanner::timer_callback()
@@ -269,12 +283,20 @@ void RobotPlanner::timer_callback()
   RCLCPP_INFO(this->get_logger(), "coveredAreaSoFar %f newCoveredAreaToNext %f", curStatus.coveredAreaSoFar,
               curStatus.newCoveredAreaToNext);
 
+  // gadget
+  curStatus.gadget = estimateGadget();
+  RCLCPP_INFO(this->get_logger(), "gadget (%f, %f) (%f, %f)", curStatus.gadget[0][0], curStatus.gadget[0][1],
+              curStatus.gadget[1][0], curStatus.gadget[1][1]);
+
   // footprint
   curStatus.footprint = estimateFootprint();
   RCLCPP_INFO(this->get_logger(), "footprint rear (%f, %f) (%f, %f)", curStatus.footprint[0][0],
               curStatus.footprint[0][1], curStatus.footprint[1][0], curStatus.footprint[1][1]);
   RCLCPP_INFO(this->get_logger(), "footprint front (%f, %f) (%f, %f)", curStatus.footprint[2][0],
               curStatus.footprint[2][1], curStatus.footprint[3][0], curStatus.footprint[3][1]);
+
+  // vis
+  widget_->updateVis(curStatus);
 
   // ending
   curIdx_++;
