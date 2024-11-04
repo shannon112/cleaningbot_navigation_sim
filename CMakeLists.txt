@@ -1,12 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 project(cleaningbot_navigation_sim)
 
-# Default to C99
-if(NOT CMAKE_C_STANDARD)
-  set(CMAKE_C_STANDARD 99)
-endif()
-
-# Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
@@ -15,32 +9,53 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(Qt5 REQUIRED COMPONENTS Widgets)
 
 # customized msg/srv
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/LoadPlanJson.srv"
 )
 
-# robot_planner node
-include_directories(${EIGEN3_INCLUDE_DIR})
-add_executable(robot_planner src/robot_planner.cpp)
-target_include_directories(robot_planner PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(robot_planner rclcpp nlohmann_json Eigen3)
-rosidl_target_interfaces(robot_planner
+# cleaningbot_sim node
+set(cleaningbot_sim_HDRS
+  include/cleaningbot_navigation_sim/robot_vis.h
+)
+qt5_wrap_cpp(cleaningbot_sim_MOCS ${cleaningbot_sim_HDRS})
+
+add_executable(cleaningbot_sim 
+  ${cleaningbot_sim_MOCS}
+  src/robot_planner.cpp 
+  src/robot_vis.cpp
+  src/main.cpp
+)
+
+target_link_libraries(cleaningbot_sim 
+  rclcpp::rclcpp
+  ${EIGEN3_LIBRARIES}
+  Qt5::Widgets                                   # Link Qt5 Widgets
+  nlohmann_json::nlohmann_json                   # Link JSON library
+)
+
+target_include_directories(cleaningbot_sim PUBLIC
+  include
+  ${EIGEN3_INCLUDE_DIR}
+  ${Qt5Widgets_INCLUDE_DIRS}
+)
+
+rosidl_target_interfaces(cleaningbot_sim
       ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
-# robot_visualizer node
-
-install(TARGETS robot_planner
+install(TARGETS cleaningbot_sim
   DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY include/
+  DESTINATION include/
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

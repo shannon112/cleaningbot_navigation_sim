@@ -1,6 +1,4 @@
-#include "cleaningbot_navigation_sim/srv/load_plan_json.hpp"
 #include "cleaningbot_navigation_sim/robot_planner.h"
-#include "rclcpp/rclcpp.hpp"
 
 #include <fstream>
 #include <memory>
@@ -13,7 +11,7 @@ float cross2d(const Eigen::Vector2f& vecA, const Eigen::Vector2f& vecB)
   return vecA[0] * vecB[1] - vecA[1] * vecB[0];
 }
 
-RobotPlanner::RobotPlanner() : Node("robot_planner")
+RobotPlanner::RobotPlanner(RobotVis* widget) : Node("robot_planner"), widget_(widget)
 {
   timer_ = this->create_wall_timer(samplingTime_, std::bind(&RobotPlanner::timer_callback, this));
   service_ = this->create_service<cleaningbot_navigation_sim::srv::LoadPlanJson>(
@@ -281,12 +279,4 @@ void RobotPlanner::timer_callback()
   // ending
   curIdx_++;
   prevStatus = curStatus;
-}
-
-int main(int argc, char* argv[])
-{
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<RobotPlanner>());
-  rclcpp::shutdown();
-  return 0;
 }

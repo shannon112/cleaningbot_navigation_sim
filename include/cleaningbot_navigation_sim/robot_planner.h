@@ -1,4 +1,11 @@
+#ifndef ROBOT_PLANNER_H
+#define ROBOT_PLANNER_H
+
 #include "rclcpp/rclcpp.hpp"
+
+#include "cleaningbot_navigation_sim/srv/load_plan_json.hpp"
+#include "cleaningbot_navigation_sim/robot_vis.h"
+
 #include <Eigen/Dense>
 #include <chrono>
 
@@ -29,7 +36,7 @@ struct Status
 class RobotPlanner : public rclcpp::Node
 {
 public:
-  RobotPlanner();
+  RobotPlanner(RobotVis* widget = nullptr);
   void loadPlanJson(const std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Request> request,
                     std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Response> response);
   bool parsePlanJson(const std::string planJsonStr);
@@ -54,6 +61,7 @@ private:
   std::size_t curIdx_ = 0;
   Status prevStatus;
   OccupancyMap map;
+  RobotVis* widget_;
 
   // configs
   const Eigen::Matrix3f initPose =
@@ -65,3 +73,5 @@ private:
   const std::chrono::milliseconds samplingTime_ = 10ms;
   const float mapGridSize_ = 0.01f;
 };
+
+#endif  // ROBOT_PLANNER_H
