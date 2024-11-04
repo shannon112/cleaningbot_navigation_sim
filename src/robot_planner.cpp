@@ -18,7 +18,7 @@ float cross2d(const Eigen::Vector2f& vecA, const Eigen::Vector2f& vecB)
 struct OccupancyMap
 {
   Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> grids;
-  Eigen::Vector2f topleftOrigin = { 0.f, 0.f };
+  Eigen::Vector2f origin = { 0.f, 0.f };
   float gridSize = 0.01f;
   // the first grid including value at ([0, gridSize), [0, gridSize))
 };
@@ -57,6 +57,7 @@ private:
     {
       return;  // waiting for data inputs
     }
+    RCLCPP_INFO(this->get_logger(), "---reading dataframe %d---", curIdx);
 
     Status curStatus;
 
@@ -103,20 +104,18 @@ private:
     // updatedGridIds
     if (curIdx != waypoints_.size() - 1)
     {
-      Eigen::Vector2f verticalVec = waypoints_[curIdx + 1] - waypoints_[curIdx];
-      Eigen::Vector2f horizontalVec(verticalVec[1], -verticalVec[0]);
-      Eigen::Vector2f horizontalUnitVec = horizontalVec / horizontalVec.norm();
-      Eigen::Vector2f horizontalUnitLeftVec =
-          cross2d(verticalVec, horizontalUnitVec) > 0.f ? horizontalUnitVec : horizontalUnitVec * -1.f;
+      Eigen::Vector2f translationVec = waypoints_[curIdx + 1] - waypoints_[curIdx];
+      Eigen::Rotation2D<float> rotationMat(atan(translationVec[1] / translationVec[0]));
 
       // get four points of the covered rectangle area
-      const float gadgetLen = (robotGadgetPoints_[0] - robotGadgetPoints_[1]).norm();
-      Eigen::Vector2f bottomleft = waypoints_[curIdx] + horizontalUnitLeftVec * 0.5f * gadgetLen;
-      Eigen::Vector2f bottomright = waypoints_[curIdx] + horizontalUnitLeftVec * -0.5f * gadgetLen;
-      Eigen::Vector2f topleft = waypoints_[curIdx + 1] + horizontalUnitLeftVec * 0.5f * gadgetLen;
-      Eigen::Vector2f topright = waypoints_[curIdx + 1] + horizontalUnitLeftVec * -0.5f * gadgetLen;
-      RCLCPP_INFO(this->get_logger(), "bottomleft (%f, %f)", bottomleft[0], bottomleft[1]);
-      RCLCPP_INFO(this->get_logger(), "topleft (%f, %f)", topleft[0], topleft[1]);
+      Eigen::Vector2f bottomleft = rotationMat * robotGadgetPoints_[0] + waypoints_[curIdx];
+      Eigen::Vector2f bottomright = rotationMat * robotGadgetPoints_[1] + waypoints_[curIdx];
+      Eigen::Vector2f topleft = rotationMat * robotGadgetPoints_[0] + waypoints_[curIdx + 1];
+      Eigen::Vector2f topright = rotationMat * robotGadgetPoints_[1] + waypoints_[curIdx + 1];
+      RCLCPP_INFO(this->get_logger(), "scanning area topleft (%f, %f)", topleft[0], topleft[1]);
+      RCLCPP_INFO(this->get_logger(), "scanning area topright (%f, %f)", topright[0], topright[1]);
+      RCLCPP_INFO(this->get_logger(), "scanning area bottomleft (%f, %f)", bottomleft[0], bottomleft[1]);
+      RCLCPP_INFO(this->get_logger(), "scanning area bottomright (%f, %f)", bottomright[0], bottomright[1]);
 
       // get four lines (vectors)
       Eigen::Vector2f rightVec = topright - bottomright;
@@ -130,16 +129,16 @@ private:
       float maxY = std::max(std::max(topleft[1], topright[1]), std::max(bottomleft[1], bottomright[1]));
       float minY = std::min(std::min(topleft[1], topright[1]), std::min(bottomleft[1], bottomright[1]));
 
-      int maxXIdx = (maxX - map.topleftOrigin[0]) / map.gridSize;
-      int minXIdx = (minX - map.topleftOrigin[0]) / map.gridSize;
-      int maxYIdx = (maxY - map.topleftOrigin[1]) / map.gridSize;
-      int minYIdx = (minY - map.topleftOrigin[1]) / map.gridSize;
+      int maxXIdx = (maxX - map.origin[0]) / map.gridSize;
+      int minXIdx = (minX - map.origin[0]) / map.gridSize;
+      int maxYIdx = (maxY - map.origin[1]) / map.gridSize;
+      int minYIdx = (minY - map.origin[1]) / map.gridSize;
       RCLCPP_INFO(this->get_logger(), "bbx %d %d %d %d", maxXIdx, minXIdx, maxYIdx, minYIdx);
 
       // mark gridIds on map
       for (const auto gridId : prevStatus.coveredGridIdsToNext)
       {
-        map.grids(gridId[1], gridId[0]) = true;
+        map.grids(gridId[0], gridId[1]) = true;
       }
       curStatus.coveredAreaSoFar = prevStatus.newCoveredAreaToNext + prevStatus.coveredAreaSoFar;
 
@@ -148,15 +147,16 @@ private:
       {
         for (int y = minYIdx; y <= maxYIdx; y++)
         {
-          Eigen::Vector2f gridCenter = map.topleftOrigin + Eigen::Vector2i(x, y).cast<float>() * map.gridSize +
+          Eigen::Vector2f gridCenter = map.origin + Eigen::Vector2i(x, y).cast<float>() * map.gridSize +
                                        Eigen::Vector2f(map.gridSize * 0.5f, map.gridSize * 0.5f);
-          RCLCPP_INFO(this->get_logger(), "gridCenter (%f, %f)", gridCenter[0], gridCenter[1]);
+          // RCLCPP_INFO(this->get_logger(), "gridCenter (%f, %f)", gridCenter[0], gridCenter[1]);
           bool isCovered =
               cross2d(rightVec, (gridCenter - bottomright)) >= 0.f && cross2d(topVec, (gridCenter - topright)) >= 0.f &&
               cross2d(leftVec, (gridCenter - topleft)) >= 0.f && cross2d(bottomtVec, (gridCenter - bottomleft)) >= 0.f;
-          if (isCovered && !map.grids(y, x))
+          // RCLCPP_INFO(this->get_logger(), "isCovered %d", isCovered);
+          if (isCovered && !map.grids(x, y))
           {
-            RCLCPP_INFO(this->get_logger(), "covered!");
+            // RCLCPP_INFO(this->get_logger(), "covered!");
             curStatus.coveredGridIdsToNext.push_back(Eigen::Vector2i(x, y));
             curStatus.newCoveredAreaToNext += std::pow(map.gridSize, 2);
           }
@@ -172,11 +172,19 @@ private:
                 curStatus.newCoveredAreaToNext);
 
     // get four points for footprint
-    // apply transformation org2cur
+    Eigen::Vector2f translationVec = waypoints_[curIdx + 1] - waypoints_[curIdx];
+    Eigen::Rotation2D<float> rotationMat(atan(translationVec[1] / translationVec[0]));
+    for (int i = 0; i < 4; i++)
+    {
+      curStatus.footprints[i] = rotationMat * robotContourPoints_[i] + waypoints_[curIdx];
+    }
+    RCLCPP_INFO(this->get_logger(), "footprints (%f, %f)", curStatus.footprints[0][0], curStatus.footprints[0][1]);
+    RCLCPP_INFO(this->get_logger(), "footprints (%f, %f)", curStatus.footprints[1][0], curStatus.footprints[1][1]);
+    RCLCPP_INFO(this->get_logger(), "footprints (%f, %f)", curStatus.footprints[2][0], curStatus.footprints[2][1]);
+    RCLCPP_INFO(this->get_logger(), "footprints (%f, %f)", curStatus.footprints[3][0], curStatus.footprints[3][1]);
 
     // ending
     curIdx++;
-
     prevStatus = curStatus;
   }
 
@@ -265,18 +273,18 @@ private:
       bottomMost = std::max(topMost, waypoints_[i][1]);
     }
 
-    const float gadgetLen = (robotGadgetPoints_[0] - robotGadgetPoints_[1]).norm();
-    const Eigen::Vector2f topleftMostPoint(leftMost - 0.5f * gadgetLen, topMost - 0.5f * gadgetLen);
-    const Eigen::Vector2f bottomRightMostPoint(rightMost + 0.5f * gadgetLen, bottomMost + 0.5f * gadgetLen);
+    const float linkMaxLen = 10.f;  // std::max(robotGadgetPoints_[0].norm(), robotGadgetPoints_[1].norm());
+    const Eigen::Vector2f bottomleftMostPoint(leftMost - linkMaxLen, bottomMost - linkMaxLen);
+    const Eigen::Vector2f topRightMostPoint(rightMost + linkMaxLen, topMost + linkMaxLen);
 
-    const Eigen::Vector2i topleftMostGridIdx = (topleftMostPoint / map.gridSize).cast<int>();      // floor
-    const Eigen::Vector2i bottomRightGridIdx = (bottomRightMostPoint / map.gridSize).cast<int>();  // floor
+    const Eigen::Vector2i bottomleftMostGridIdx = (bottomleftMostPoint / map.gridSize).cast<int>();  // floor
+    const Eigen::Vector2i topRightGridIdx = (topRightMostPoint / map.gridSize).cast<int>();          // floor
 
-    map.topleftOrigin = topleftMostGridIdx.cast<float>() * map.gridSize;
-    const Eigen::Vector2i heightWidth = bottomRightGridIdx - topleftMostGridIdx + Eigen::Vector2i(1, 1);
+    map.origin = bottomleftMostGridIdx.cast<float>() * map.gridSize;
+    const Eigen::Vector2i heightWidth = topRightGridIdx - bottomleftMostGridIdx + Eigen::Vector2i(1, 1);
     map.grids = Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>::Zero(heightWidth[0], heightWidth[1]);
-    RCLCPP_INFO(this->get_logger(), "Map origin (%f, %f), Dimension (%d, %d), Grid size %f", map.topleftOrigin[0],
-                map.topleftOrigin[1], map.grids.rows(), map.grids.cols(), map.gridSize);
+    RCLCPP_INFO(this->get_logger(), "Map origin (%f, %f), Dimension (%d, %d), Grid size %f", map.origin[0],
+                map.origin[1], map.grids.rows(), map.grids.cols(), map.gridSize);
   }
 
   float curvatureToVelocity(const float curvature)
@@ -310,6 +318,8 @@ private:
   OccupancyMap map;
 
   // configs
+  const Eigen::Matrix3f initPose =
+      Eigen::Matrix3f::Identity();  // assume that the given robot base_link is at origin with theta=0 pose
   const float curvatureCritical_ = 0.5f;
   const float curvatureMax_ = 10.f;
   const float velocityMin_ = 0.15f;
