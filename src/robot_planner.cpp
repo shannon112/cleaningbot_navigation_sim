@@ -11,6 +11,12 @@ float cross2d(const Eigen::Vector2f& vecA, const Eigen::Vector2f& vecB)
   return vecA[0] * vecB[1] - vecA[1] * vecB[0];
 }
 
+Eigen::Rotation2D<float> getRotationMat(const Eigen::Vector2f& vecCur, const Eigen::Vector2f& vecNext)
+{
+  const Eigen::Vector2f translationVec = vecNext - vecCur;
+  return Eigen::Rotation2D<float>(std::atan2(translationVec[1], translationVec[0]));
+}
+
 RobotPlanner::RobotPlanner(std::shared_ptr<RobotVis> widget) : Node("robot_planner"), widget_(widget)
 {
   timer_ = this->create_wall_timer(samplingTime_, std::bind(&RobotPlanner::timer_callback, this));
@@ -103,10 +109,10 @@ void RobotPlanner::constructMap()
     bottomMost = std::min(bottomMost, waypoints_[i][1]);
   }
 
-  std::vector<float> robotPointLens = { robotGadgetPoints_[0].norm(),  robotGadgetPoints_[1].norm(),
-                                        robotContourPoints_[0].norm(), robotContourPoints_[1].norm(),
-                                        robotContourPoints_[2].norm(), robotContourPoints_[3].norm() };
-  float linkMaxLen = *std::max_element(robotPointLens.begin(), robotPointLens.end());
+  const std::vector<float> robotPointLens = { robotGadgetPoints_[0].norm(),  robotGadgetPoints_[1].norm(),
+                                              robotContourPoints_[0].norm(), robotContourPoints_[1].norm(),
+                                              robotContourPoints_[2].norm(), robotContourPoints_[3].norm() };
+  const float linkMaxLen = *std::max_element(robotPointLens.begin(), robotPointLens.end());
   const Eigen::Vector2f bottomleftMostPoint(leftMost - linkMaxLen, bottomMost - linkMaxLen);
   const Eigen::Vector2f topRightMostPoint(rightMost + linkMaxLen, topMost + linkMaxLen);
 
@@ -166,10 +172,8 @@ std::vector<Eigen::Vector2i> RobotPlanner::estimateNewCoveredGridIdsToNext()
     return {};
   }
 
-  const Eigen::Vector2f translationVec = waypoints_[curIdx_ + 1] - waypoints_[curIdx_];
-  const Eigen::Rotation2D<float> rotationMat(atan(translationVec[1] / translationVec[0]));
-
   // get four points of the covered rectangle area
+  const Eigen::Rotation2D<float> rotationMat = getRotationMat(waypoints_[curIdx_], waypoints_[curIdx_ + 1]);
   const Eigen::Vector2f bottomleft = rotationMat * robotGadgetPoints_[0] + waypoints_[curIdx_];
   const Eigen::Vector2f bottomright = rotationMat * robotGadgetPoints_[1] + waypoints_[curIdx_];
   const Eigen::Vector2f topleft = rotationMat * robotGadgetPoints_[0] + waypoints_[curIdx_ + 1];
@@ -226,8 +230,7 @@ std::vector<Eigen::Vector2i> RobotPlanner::estimateNewCoveredGridIdsToNext()
 std::array<Eigen::Vector2f, 4> RobotPlanner::estimateFootprint()
 {
   std::array<Eigen::Vector2f, 4> footprint;
-  const Eigen::Vector2f translationVec = waypoints_[curIdx_ + 1] - waypoints_[curIdx_];
-  const Eigen::Rotation2D<float> rotationMat(std::atan2(translationVec[1], translationVec[0]));
+  const Eigen::Rotation2D<float> rotationMat = getRotationMat(waypoints_[curIdx_], waypoints_[curIdx_ + 1]);
   for (int i = 0; i < 4; i++)
   {
     footprint[i] = rotationMat * robotContourPoints_[i] + waypoints_[curIdx_];
@@ -238,8 +241,7 @@ std::array<Eigen::Vector2f, 4> RobotPlanner::estimateFootprint()
 std::array<Eigen::Vector2f, 2> RobotPlanner::estimateGadget()
 {
   std::array<Eigen::Vector2f, 2> gadget;
-  const Eigen::Vector2f translationVec = waypoints_[curIdx_ + 1] - waypoints_[curIdx_];
-  const Eigen::Rotation2D<float> rotationMat(std::atan2(translationVec[1], translationVec[0]));
+  const Eigen::Rotation2D<float> rotationMat = getRotationMat(waypoints_[curIdx_], waypoints_[curIdx_ + 1]);
   gadget[0] = rotationMat * robotGadgetPoints_[0] + waypoints_[curIdx_];
   gadget[1] = rotationMat * robotGadgetPoints_[1] + waypoints_[curIdx_];
   return gadget;
@@ -277,6 +279,7 @@ void RobotPlanner::timer_callback()
               curStatus.durationSoFar);
 
   // area
+  curStatus.coveredGridIdsPrevToCur = prevStatus_.newCoveredGridIdsToNext;
   curStatus.newCoveredGridIdsToNext = estimateNewCoveredGridIdsToNext();
   curStatus.newCoveredAreaToNext = estimateNewCoveredGridIdsToNext().size() * std::pow(map_.gridSize, 2);
   curStatus.coveredAreaSoFar = prevStatus_.newCoveredAreaToNext + prevStatus_.coveredAreaSoFar;

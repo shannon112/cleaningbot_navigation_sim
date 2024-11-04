@@ -15,6 +15,7 @@ struct Status
   float durationSoFar = 0.f;
   std::vector<Eigen::Vector2i> newCoveredGridIdsToNext;
   float newCoveredAreaToNext = 0.f;
+  std::vector<Eigen::Vector2i> coveredGridIdsPrevToCur;
   float coveredAreaSoFar = 0.f;
   std::array<Eigen::Vector2f, 2> gadget;
   std::array<Eigen::Vector2f, 4> footprint;

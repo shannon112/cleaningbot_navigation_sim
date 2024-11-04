@@ -56,7 +56,8 @@ bash format.bash
 ## DDA Raycasting algo
   - DDA is a fast algorithm typically used on square grids to find which squares a line hits (for example to draw a line on a screen, which is a grid of square pixels). [8]
   - ![image](https://github.com/user-attachments/assets/c4a7636c-8a9f-427d-a34a-70a50c41db60)
-
+## arctan2
+## line and the cross product
 
 # 3. Ref
 - [1] https://en.wikipedia.org/wiki/Curvature

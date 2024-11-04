@@ -47,6 +47,15 @@ void RobotVis::setupVis(const OccupancyMap& map, const std::vector<Eigen::Vector
 void RobotVis::updateVis(const Status& status)
 {
   status_ = status;
+
+  // show map
+  QPainter pixmapPainter(&pixelMapGrids_);
+  pixmapPainter.setRenderHint(QPainter::Antialiasing);
+  for (const Eigen::Vector2i& point : status_->coveredGridIdsPrevToCur)
+  {
+    pixmapPainter.fillRect(QRect(getPos(point), QSize(1, 1)), QColor(Qt::gray));
+  }
+
   update();  // triggers paintEvent
 }
 
@@ -58,13 +67,7 @@ void RobotVis::paintEvent(QPaintEvent* event)
   QPainter painter(this);
   painter.setRenderHint(QPainter::Antialiasing);
 
-  // show map
-  QPainter pixmapPainter(&pixelMapGrids_);
-  pixmapPainter.setRenderHint(QPainter::Antialiasing);
-  for (const Eigen::Vector2i& point : status_->newCoveredGridIdsToNext)
-  {
-    pixmapPainter.fillRect(QRect(getPos(point), QSize(1, 1)), QColor(Qt::gray));
-  }
+  // show background
   painter.drawPixmap(0, 0, pixelMapGrids_);
   painter.drawPixmap(0, 0, pixelMapTrajectory_);
 
