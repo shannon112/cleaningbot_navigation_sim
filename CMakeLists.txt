@@ -30,6 +30,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 # robot_planner node
 include_directories(${EIGEN3_INCLUDE_DIR})
 add_executable(robot_planner src/robot_planner.cpp)
+target_include_directories(robot_planner PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
 ament_target_dependencies(robot_planner rclcpp nlohmann_json Eigen3)
 rosidl_target_interfaces(robot_planner
       ${PROJECT_NAME} "rosidl_typesupport_cpp")
