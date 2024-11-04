@@ -2,9 +2,10 @@
 #include "cleaningbot_navigation_sim/robot_vis.h"
 
 #include <QApplication>
+#include <QTimer>
+
 #include <thread>
 #include <csignal>
-#include <QTimer>
 
 std::atomic<bool> shutdown_requested(false);
 void signalHandler(int)
