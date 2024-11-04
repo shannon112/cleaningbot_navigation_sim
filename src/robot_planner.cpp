@@ -30,7 +30,7 @@ void RobotPlanner::loadPlanJson(const std::shared_ptr<cleaningbot_navigation_sim
               response->is_successfully_loaded ? "success" : "failed", response->num_path_samples);
 
   constructMap();
-  widget_->setupVis(map_);
+  widget_->setupVis(map_, waypoints_);
 }
 
 bool RobotPlanner::parsePlanJson(const std::string planJsonStr)

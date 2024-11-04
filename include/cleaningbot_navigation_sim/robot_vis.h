@@ -14,13 +14,17 @@ public:
   RobotVis(QWidget* parent = nullptr);
   ~RobotVis();
   QPoint getPos(const Eigen::Vector2f& point);
-  void setupVis(const OccupancyMap& map);
+  QPoint getPos(const Eigen::Vector2i& point);
+  void setupVis(const OccupancyMap& map, const std::vector<Eigen::Vector2f>& waypoints);
   void updateVis(const Status& status);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
 
 private:
+  QPixmap pixelMapGrids_;
+  QPixmap pixelMapTrajectory_;
+
   std::optional<Status> status_;
   float gridSize_;
   Eigen::Vector2i mapSizeWH_;
