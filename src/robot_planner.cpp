@@ -11,7 +11,7 @@ float cross2d(const Eigen::Vector2f& vecA, const Eigen::Vector2f& vecB)
   return vecA[0] * vecB[1] - vecA[1] * vecB[0];
 }
 
-RobotPlanner::RobotPlanner(RobotVis* widget) : Node("robot_planner"), widget_(widget)
+RobotPlanner::RobotPlanner(std::shared_ptr<RobotVis> widget) : Node("robot_planner"), widget_(widget)
 {
   timer_ = this->create_wall_timer(samplingTime_, std::bind(&RobotPlanner::timer_callback, this));
   service_ = this->create_service<cleaningbot_navigation_sim::srv::LoadPlanJson>(
@@ -88,7 +88,7 @@ bool RobotPlanner::parsePlanJson(const std::string planJsonStr)
 void RobotPlanner::constructMap()
 {
   // origin is at top left
-  map.gridSize = mapGridSize_;
+  map_.gridSize = mapGridSize_;
 
   float leftMost = std::numeric_limits<float>::max();
   float rightMost = std::numeric_limits<float>::min();
@@ -106,14 +106,14 @@ void RobotPlanner::constructMap()
   const Eigen::Vector2f bottomleftMostPoint(leftMost - linkMaxLen, bottomMost - linkMaxLen);
   const Eigen::Vector2f topRightMostPoint(rightMost + linkMaxLen, topMost + linkMaxLen);
 
-  const Eigen::Vector2i bottomleftMostGridIdx = (bottomleftMostPoint / map.gridSize).cast<int>();  // floor
-  const Eigen::Vector2i topRightGridIdx = (topRightMostPoint / map.gridSize).cast<int>();          // floor
+  const Eigen::Vector2i bottomleftMostGridIdx = (bottomleftMostPoint / map_.gridSize).cast<int>();  // floor
+  const Eigen::Vector2i topRightGridIdx = (topRightMostPoint / map_.gridSize).cast<int>();          // floor
 
-  map.origin = bottomleftMostGridIdx.cast<float>() * map.gridSize;
+  map_.origin = bottomleftMostGridIdx.cast<float>() * map_.gridSize;
   const Eigen::Vector2i heightWidth = topRightGridIdx - bottomleftMostGridIdx + Eigen::Vector2i(1, 1);
-  map.grids = Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>::Zero(heightWidth[0], heightWidth[1]);
-  RCLCPP_INFO(this->get_logger(), "Map origin (%f, %f), Dimension (%d, %d), Grid size %f", map.origin[0], map.origin[1],
-              map.grids.rows(), map.grids.cols(), map.gridSize);
+  map_.grids = Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>::Zero(heightWidth[0], heightWidth[1]);
+  RCLCPP_INFO(this->get_logger(), "Map origin (%f, %f), Dimension (%d, %d), Grid size %f", map_.origin[0],
+              map_.origin[1], map_.grids.rows(), map_.grids.cols(), map_.gridSize);
 }
 
 float RobotPlanner::estimateVelocity()
@@ -133,8 +133,8 @@ float RobotPlanner::estimateVelocity()
     const float theta = acos(prevVec.dot(nextVec) / (prevVec.norm() * nextVec.norm()));
     const float avgLen = (prevVec.norm() + nextVec.norm()) / 2.f;
     const float curvature = theta / avgLen;
-    return std::isnan(curvature) ? prevStatus.velocity : curvatureToVelocity(curvature);  // reuse prev vel if k is nan
-                                                                                          // due to points too close
+    return std::isnan(curvature) ? prevStatus_.velocity : curvatureToVelocity(curvature);  // reuse prev vel if k is nan
+                                                                                           // due to points too close
   }
 }
 
@@ -187,15 +187,15 @@ std::vector<Eigen::Vector2i> RobotPlanner::estimateNewCoveredGridIdsToNext()
   const float maxY = std::max(std::max(topleft[1], topright[1]), std::max(bottomleft[1], bottomright[1]));
   const float minY = std::min(std::min(topleft[1], topright[1]), std::min(bottomleft[1], bottomright[1]));
 
-  const int maxXIdx = (maxX - map.origin[0]) / map.gridSize;
-  const int minXIdx = (minX - map.origin[0]) / map.gridSize;
-  const int maxYIdx = (maxY - map.origin[1]) / map.gridSize;
-  const int minYIdx = (minY - map.origin[1]) / map.gridSize;
+  const int maxXIdx = (maxX - map_.origin[0]) / map_.gridSize;
+  const int minXIdx = (minX - map_.origin[0]) / map_.gridSize;
+  const int maxYIdx = (maxY - map_.origin[1]) / map_.gridSize;
+  const int minYIdx = (minY - map_.origin[1]) / map_.gridSize;
 
   // mark gridIds on map
-  for (const auto gridId : prevStatus.newCoveredGridIdsToNext)
+  for (const auto gridId : prevStatus_.newCoveredGridIdsToNext)
   {
-    map.grids(gridId[0], gridId[1]) = true;
+    map_.grids(gridId[0], gridId[1]) = true;
   }
 
   // get covered area for next iteration
@@ -204,12 +204,12 @@ std::vector<Eigen::Vector2i> RobotPlanner::estimateNewCoveredGridIdsToNext()
   {
     for (int y = minYIdx; y <= maxYIdx; y++)
     {
-      const Eigen::Vector2f gridCenter = map.origin + Eigen::Vector2i(x, y).cast<float>() * map.gridSize +
-                                         Eigen::Vector2f(map.gridSize * 0.5f, map.gridSize * 0.5f);
+      const Eigen::Vector2f gridCenter = map_.origin + Eigen::Vector2i(x, y).cast<float>() * map_.gridSize +
+                                         Eigen::Vector2f(map_.gridSize * 0.5f, map_.gridSize * 0.5f);
       const bool isCovered =
           cross2d(rightVec, (gridCenter - bottomright)) >= 0.f && cross2d(topVec, (gridCenter - topright)) >= 0.f &&
           cross2d(leftVec, (gridCenter - topleft)) >= 0.f && cross2d(bottomtVec, (gridCenter - bottomleft)) >= 0.f;
-      if (isCovered && !map.grids(x, y))
+      if (isCovered && !map_.grids(x, y))
       {
         newCoveredGridIdsToNext.push_back(Eigen::Vector2i(x, y));
       }
@@ -252,20 +252,20 @@ void RobotPlanner::timer_callback()
   // distnace
   curStatus.distanceToNext =
       (curIdx_ == waypoints_.size() - 1) ? 0.f : (waypoints_[curIdx_ + 1] - waypoints_[curIdx_]).norm();
-  curStatus.distanceSoFar = prevStatus.distanceToNext + prevStatus.distanceSoFar;
+  curStatus.distanceSoFar = prevStatus_.distanceToNext + prevStatus_.distanceSoFar;
   RCLCPP_INFO(this->get_logger(), "distanceToNext %f distanceSoFar %f", curStatus.distanceToNext,
               curStatus.distanceSoFar);
 
   // duration
   curStatus.durationToNext = (curIdx_ == waypoints_.size() - 1) ? 0.f : curStatus.distanceToNext / curStatus.velocity;
-  curStatus.durationSoFar = prevStatus.durationSoFar + prevStatus.durationToNext;
+  curStatus.durationSoFar = prevStatus_.durationSoFar + prevStatus_.durationToNext;
   RCLCPP_INFO(this->get_logger(), "durationToNext %f durationSoFar %f", curStatus.durationToNext,
               curStatus.durationSoFar);
 
   // area
   curStatus.newCoveredGridIdsToNext = estimateNewCoveredGridIdsToNext();
-  curStatus.newCoveredAreaToNext = estimateNewCoveredGridIdsToNext().size() * std::pow(map.gridSize, 2);
-  curStatus.coveredAreaSoFar = prevStatus.newCoveredAreaToNext + prevStatus.coveredAreaSoFar;
+  curStatus.newCoveredAreaToNext = estimateNewCoveredGridIdsToNext().size() * std::pow(map_.gridSize, 2);
+  curStatus.coveredAreaSoFar = prevStatus_.newCoveredAreaToNext + prevStatus_.coveredAreaSoFar;
   RCLCPP_INFO(this->get_logger(), "coveredAreaSoFar %f newCoveredAreaToNext %f", curStatus.coveredAreaSoFar,
               curStatus.newCoveredAreaToNext);
 
@@ -278,5 +278,5 @@ void RobotPlanner::timer_callback()
 
   // ending
   curIdx_++;
-  prevStatus = curStatus;
+  prevStatus_ = curStatus;
 }

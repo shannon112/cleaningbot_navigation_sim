@@ -19,11 +19,11 @@ int main(int argc, char* argv[])
   QApplication app(argc, argv);
 
   // visualizer
-  RobotVis visWidget;
-  visWidget.show();
+  auto visWidget = std::make_shared<RobotVis>();
+  visWidget->show();
 
   // planner node
-  auto planner = std::make_shared<RobotPlanner>(&visWidget);
+  auto planner = std::make_shared<RobotPlanner>(visWidget);
   rclcpp::executors::MultiThreadedExecutor executor;
   executor.add_node(planner);
   std::thread spinThread([&executor]() { executor.spin(); });

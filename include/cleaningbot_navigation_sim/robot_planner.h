@@ -36,7 +36,7 @@ struct Status
 class RobotPlanner : public rclcpp::Node
 {
 public:
-  RobotPlanner(RobotVis* widget = nullptr);
+  RobotPlanner(std::shared_ptr<RobotVis> widget);
   void loadPlanJson(const std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Request> request,
                     std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Response> response);
   bool parsePlanJson(const std::string planJsonStr);
@@ -51,6 +51,7 @@ private:
 
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Service<cleaningbot_navigation_sim::srv::LoadPlanJson>::SharedPtr service_;
+  std::shared_ptr<RobotVis> widget_;
 
   // inputs
   std::array<Eigen::Vector2f, 4> robotContourPoints_;
@@ -59,9 +60,8 @@ private:
 
   // data
   std::size_t curIdx_ = 0;
-  Status prevStatus;
-  OccupancyMap map;
-  RobotVis* widget_;
+  Status prevStatus_;
+  OccupancyMap map_;
 
   // configs
   const Eigen::Matrix3f initPose =
