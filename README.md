@@ -20,8 +20,7 @@ ros2 service call /load_plan_json cleaningbot_navigation_sim/srv/LoadPlanJson "{
 ```
 debug cmd
 ```
-clang-format-9 src/robot_planner.cpp -i
-// format
+bash format.bash
 // test
 ```
 
