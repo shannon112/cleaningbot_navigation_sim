@@ -178,10 +178,6 @@ std::vector<Eigen::Vector2i> RobotPlanner::estimateNewCoveredGridIdsToNext()
   const Eigen::Vector2f bottomright = rotationMat * robotGadgetPoints_[1] + waypoints_[curIdx_];
   const Eigen::Vector2f topleft = rotationMat * robotGadgetPoints_[0] + waypoints_[curIdx_ + 1];
   const Eigen::Vector2f topright = rotationMat * robotGadgetPoints_[1] + waypoints_[curIdx_ + 1];
-  RCLCPP_INFO(this->get_logger(), "scanning area topleft (%f, %f)", topleft[0], topleft[1]);
-  RCLCPP_INFO(this->get_logger(), "scanning area topright (%f, %f)", topright[0], topright[1]);
-  RCLCPP_INFO(this->get_logger(), "scanning area bottomleft (%f, %f)", bottomleft[0], bottomleft[1]);
-  RCLCPP_INFO(this->get_logger(), "scanning area bottomright (%f, %f)", bottomright[0], bottomright[1]);
 
   // get four lines (vectors)
   const Eigen::Vector2f rightVec = topright - bottomright;
