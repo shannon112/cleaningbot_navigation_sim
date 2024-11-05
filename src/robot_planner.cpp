@@ -226,7 +226,10 @@ std::vector<Eigen::Vector2i> RobotPlanner::estimateNewCoveredGridIdsToNext()
 std::array<Eigen::Vector2f, 4> RobotPlanner::estimateFootprint()
 {
   std::array<Eigen::Vector2f, 4> footprint;
-  const Eigen::Rotation2D<float> rotationMat = getRotationMat(waypoints_[curIdx_], waypoints_[curIdx_ + 1]);
+  const Eigen::Rotation2D<float> rotationMat =
+      (curIdx_ == waypoints_.size() - 1) ?
+          getRotationMat(waypoints_[waypoints_.size() - 2], waypoints_[waypoints_.size() - 1]) :
+          getRotationMat(waypoints_[curIdx_], waypoints_[curIdx_ + 1]);
   for (int i = 0; i < 4; i++)
   {
     footprint[i] = rotationMat * robotContourPoints_[i] + waypoints_[curIdx_];
@@ -237,15 +240,33 @@ std::array<Eigen::Vector2f, 4> RobotPlanner::estimateFootprint()
 std::array<Eigen::Vector2f, 2> RobotPlanner::estimateGadget()
 {
   std::array<Eigen::Vector2f, 2> gadget;
-  const Eigen::Rotation2D<float> rotationMat = getRotationMat(waypoints_[curIdx_], waypoints_[curIdx_ + 1]);
+  const Eigen::Rotation2D<float> rotationMat =
+      (curIdx_ == waypoints_.size() - 1) ?
+          getRotationMat(waypoints_[waypoints_.size() - 2], waypoints_[waypoints_.size() - 1]) :
+          getRotationMat(waypoints_[curIdx_], waypoints_[curIdx_ + 1]);
   gadget[0] = rotationMat * robotGadgetPoints_[0] + waypoints_[curIdx_];
   gadget[1] = rotationMat * robotGadgetPoints_[1] + waypoints_[curIdx_];
   return gadget;
 }
 
+void RobotPlanner::clear()
+{
+  robotContourPoints_ = {};
+  robotGadgetPoints_ = {};
+  waypoints_.clear();
+  curIdx_ = 0;
+  prevStatus_ = {};
+  map_ = {};
+}
+
 void RobotPlanner::timer_callback()
 {
-  if (waypoints_.empty() || curIdx_ >= waypoints_.size())
+  if (curIdx_ >= waypoints_.size())
+  {
+    clear();  // assume that we clean the data after finished
+    return;
+  }
+  if (waypoints_.empty())
   {
     return;  // waiting for data inputs
   }

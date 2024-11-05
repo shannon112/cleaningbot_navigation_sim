@@ -26,6 +26,7 @@ public:
   std::vector<Eigen::Vector2i> estimateNewCoveredGridIdsToNext();
   std::array<Eigen::Vector2f, 2> estimateGadget();
   std::array<Eigen::Vector2f, 4> estimateFootprint();
+  void clear();
 
 private:
   void timer_callback();
