@@ -21,7 +21,9 @@ public:
                     std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Response> response);
   bool parsePlanJson(const std::string planJsonStr);
   void constructMap();
-  float estimateVelocity();
+  void simplifyTrajectory();  // simplification
+  void resampleTrajectory();  // smoothing
+  float estimateVelocity();   // approximation
   float curvatureToVelocity(const float curvature);
   std::vector<Eigen::Vector2i> estimateNewCoveredGridIdsToNext();
   std::array<Eigen::Vector2f, 2> estimateGadget();
@@ -50,10 +52,12 @@ private:
       Eigen::Matrix3f::Identity();  // assume that the given robot description is wrt (0,0) with theta=0
   const float curvatureCritical_ = 0.5f;
   const float curvatureMax_ = 10.f;
+  const float curvatureApprxDist_ = 0.1f;
   const float velocityMin_ = 0.15f;
   const float velocityMax_ = 1.1f;
-  const std::chrono::milliseconds samplingTime_ = 500ms;
+  const std::chrono::milliseconds samplingTime_ = 33ms;
   const float mapGridSize_ = 0.01f;
+  const float trajectorySamplingDist = 2.f * mapGridSize_;
 };
 
 #endif  // ROBOT_PLANNER_H

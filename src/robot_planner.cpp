@@ -35,8 +35,13 @@ void RobotPlanner::loadPlanJson(const std::shared_ptr<cleaningbot_navigation_sim
   RCLCPP_INFO(this->get_logger(), "Loading is %s, there are %u waypoints",
               response->is_successfully_loaded ? "success" : "failed", response->num_path_samples);
 
+  simplifyTrajectory();
+  resampleTrajectory();
   constructMap();
-  widget_->setupVis(map_, waypoints_);
+  if (widget_)
+  {
+    widget_->setupVis(map_, waypoints_);
+  }
 }
 
 bool RobotPlanner::parsePlanJson(const std::string planJsonStr)
@@ -126,6 +131,37 @@ void RobotPlanner::constructMap()
               map_.origin[1], map_.grids.rows(), map_.grids.cols(), map_.gridSize);
 }
 
+void RobotPlanner::simplifyTrajectory()
+{
+  assert(waypoints_.size() > 0);
+  std::vector<Eigen::Vector2f> waypointsSim = { waypoints_[0] };
+  for (std::size_t i = 1; i < waypoints_.size(); i++)
+  {
+    if ((waypoints_[i] - waypointsSim[waypointsSim.size() - 1]).norm() >= trajectorySamplingDist)
+    {
+      waypointsSim.push_back(waypoints_[i]);
+    }
+  }
+  waypoints_ = waypointsSim;
+}
+
+void RobotPlanner::resampleTrajectory()
+{
+  std::vector<Eigen::Vector2f> waypointsRe = {};
+  for (std::size_t i = 0; i < waypoints_.size() - 1; i++)
+  {
+    waypointsRe.push_back(waypoints_[i]);
+    const std::size_t numSamples = ((waypoints_[i] - waypoints_[i + 1]).norm()) / trajectorySamplingDist;
+    for (std::size_t j = 0; j < numSamples - 1; j++)
+    {
+      // linear iterpolation
+      waypointsRe.push_back(waypoints_[i] + (j + 1.f) / numSamples * (waypoints_[i + 1] - waypoints_[i]));
+    }
+  }
+  waypointsRe.push_back(waypoints_[waypoints_.size() - 1]);
+  waypoints_ = waypointsRe;
+}
+
 float RobotPlanner::estimateVelocity()
 {
   if (curIdx_ == 0)
@@ -138,11 +174,19 @@ float RobotPlanner::estimateVelocity()
   }
   else
   {
-    const Eigen::Vector2f prevVec = waypoints_[curIdx_] - waypoints_[curIdx_ - 1];
-    const Eigen::Vector2f nextVec = waypoints_[curIdx_ + 1] - waypoints_[curIdx_];
+    std::size_t prevIdx = curIdx_ - 1;
+    while (prevIdx != 0 && (waypoints_[curIdx_] - waypoints_[prevIdx]).norm() < curvatureApprxDist_)
+      prevIdx--;
+    const Eigen::Vector2f prevVec = waypoints_[curIdx_] - waypoints_[prevIdx];
+
+    std::size_t nextIdx = curIdx_ + 1;
+    while (nextIdx != waypoints_.size() - 1 && (waypoints_[curIdx_] - waypoints_[nextIdx]).norm() < curvatureApprxDist_)
+      nextIdx++;
+    const Eigen::Vector2f nextVec = waypoints_[nextIdx] - waypoints_[curIdx_];
+
     const float theta = acos(prevVec.dot(nextVec) / (prevVec.norm() * nextVec.norm()));
     const float avgLen = (prevVec.norm() + nextVec.norm()) / 2.f;
-    const float curvature = theta / avgLen;
+    const float curvature = theta / avgLen;                                                // approximation
     return std::isnan(curvature) ? prevStatus_.velocity : curvatureToVelocity(curvature);  // reuse prev vel if k is nan
                                                                                            // due to points too close
   }
@@ -316,7 +360,10 @@ void RobotPlanner::timer_callback()
               curStatus.footprint[2][1], curStatus.footprint[3][0], curStatus.footprint[3][1]);
 
   // vis
-  widget_->updateVis(curStatus);
+  if (widget_)
+  {
+    widget_->updateVis(curStatus);
+  }
 
   // ending
   curIdx_++;
