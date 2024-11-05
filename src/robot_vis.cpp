@@ -1,5 +1,5 @@
-
 #include "cleaningbot_navigation_sim/robot_vis.h"
+
 #include <QPainter>
 
 RobotVis::RobotVis(QWidget* parent) : QWidget(parent)

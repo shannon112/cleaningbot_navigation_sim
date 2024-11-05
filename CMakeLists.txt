@@ -73,6 +73,7 @@ if(BUILD_TESTING)
   ament_add_gtest(cleaningbot_sim_test
     test/main.cpp
     test/robot_planner_test.cpp
+    test/robot_planner_utils_test.cpp
     ${cleaningbot_sim_SRCS}
   )
 

@@ -17,21 +17,16 @@ class RobotPlanner : public rclcpp::Node
 {
 public:
   RobotPlanner(std::shared_ptr<RobotVis> widget);
-  void loadPlanJson(const std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Request> request,
-                    std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Response> response);
   bool parsePlanJson(const std::string planJsonStr);
-  void constructMap();
-  void simplifyTrajectory();  // simplification
-  void resampleTrajectory();  // smoothing
-  float estimateVelocity();   // approximation
-  float curvatureToVelocity(const float curvature);
-  std::vector<Eigen::Vector2i> estimateNewCoveredGridIdsToNext();
-  std::array<Eigen::Vector2f, 2> estimateGadget();
-  std::array<Eigen::Vector2f, 4> estimateFootprint();
-  void clear();
+  const std::array<Eigen::Vector2f, 4>& getRobotContourPoints() const;
+  const std::array<Eigen::Vector2f, 2>& getRobotGadgetPoints() const;
+  const std::vector<Eigen::Vector2f>& getWaypoints() const;
 
 private:
+  void loadPlanJson(const std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Request> request,
+                    std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Response> response);
   void timer_callback();
+  void clear();
 
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Service<cleaningbot_navigation_sim::srv::LoadPlanJson>::SharedPtr service_;
@@ -55,10 +50,10 @@ private:
   const float curvatureApprxDist_ = 0.1f;
   const float velocityMin_ = 0.15f;
   const float velocityMax_ = 1.1f;
-  const std::chrono::milliseconds samplingTime_ = 10ms;
+  const std::chrono::milliseconds samplingTime_ = 5ms;
   const float mapGridSize_ = 0.01f;
   const float trajectoryDownSamplingDist = 2.f * mapGridSize_;
-  const float trajectoryUpSamplingDist = 0.2f * mapGridSize_;
+  const float trajectoryUpSamplingDist = 0.5f * mapGridSize_;
 };
 
 #endif  // ROBOT_PLANNER_H
