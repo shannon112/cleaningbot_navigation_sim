@@ -137,7 +137,7 @@ void RobotPlanner::simplifyTrajectory()
   std::vector<Eigen::Vector2f> waypointsSim = { waypoints_[0] };
   for (std::size_t i = 1; i < waypoints_.size(); i++)
   {
-    if ((waypoints_[i] - waypointsSim[waypointsSim.size() - 1]).norm() >= trajectorySamplingDist)
+    if ((waypoints_[i] - waypointsSim[waypointsSim.size() - 1]).norm() >= trajectoryDownSamplingDist)
     {
       waypointsSim.push_back(waypoints_[i]);
     }
@@ -151,11 +151,30 @@ void RobotPlanner::resampleTrajectory()
   for (std::size_t i = 0; i < waypoints_.size() - 1; i++)
   {
     waypointsRe.push_back(waypoints_[i]);
-    const std::size_t numSamples = ((waypoints_[i] - waypoints_[i + 1]).norm()) / trajectorySamplingDist;
+    const std::size_t numSamples = ((waypoints_[i] - waypoints_[i + 1]).norm()) / trajectoryUpSamplingDist;
     for (std::size_t j = 0; j < numSamples - 1; j++)
     {
+      float t = (j + 1.f) / numSamples;
+      // cubic Hermite spline interpolation
+      const Eigen::Vector2f p0 = waypoints_[i];
+      const Eigen::Vector2f p1 = waypoints_[i + 1];
+      const Eigen::Vector2f m0 =
+          (i == 0) ? (waypoints_[1] - waypoints_[0]) * 1.f : (waypoints_[i + 1] - waypoints_[i - 1]) * 0.5f;
+      const Eigen::Vector2f m1 = (i == waypoints_.size() - 2) ?
+                                     (waypoints_[waypoints_.size() - 1] - waypoints_[waypoints_.size() - 2]) * 1.f :
+                                     (waypoints_[i + 2] - waypoints_[i]) * 0.5f;
+
+      const float t2 = t * t;
+      const float t3 = t2 * t;
+
+      const Eigen::Vector2f h00 = (2 * t3 - 3 * t2 + 1) * p0;  // basis function for p0
+      const Eigen::Vector2f h10 = (t3 - 2 * t2 + t) * m0;      // basis function for m0
+      const Eigen::Vector2f h01 = (-2 * t3 + 3 * t2) * p1;     // basis function for p1
+      const Eigen::Vector2f h11 = (t3 - t2) * m1;              // basis function for m1
+      waypointsRe.push_back(h00 + h10 + h01 + h11);
+
       // linear iterpolation
-      waypointsRe.push_back(waypoints_[i] + (j + 1.f) / numSamples * (waypoints_[i + 1] - waypoints_[i]));
+      // waypointsRe.push_back(waypoints_[i] + t * (waypoints_[i + 1] - waypoints_[i]));
     }
   }
   waypointsRe.push_back(waypoints_[waypoints_.size() - 1]);

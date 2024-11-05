@@ -55,9 +55,10 @@ private:
   const float curvatureApprxDist_ = 0.1f;
   const float velocityMin_ = 0.15f;
   const float velocityMax_ = 1.1f;
-  const std::chrono::milliseconds samplingTime_ = 33ms;
+  const std::chrono::milliseconds samplingTime_ = 10ms;
   const float mapGridSize_ = 0.01f;
-  const float trajectorySamplingDist = 2.f * mapGridSize_;
+  const float trajectoryDownSamplingDist = 2.f * mapGridSize_;
+  const float trajectoryUpSamplingDist = 0.2f * mapGridSize_;
 };
 
 #endif  // ROBOT_PLANNER_H
