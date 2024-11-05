@@ -64,9 +64,13 @@ install(DIRECTORY include/
   DESTINATION include/
 )
 
+install(DIRECTORY test/test_vectors/
+  DESTINATION test_vectors/)
+
 option(BUILD_TESTING "Enable testing" ON)
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_index_cpp REQUIRED)
   #find_package(ament_lint_auto REQUIRED)
   #ament_lint_auto_find_test_dependencies() # disabled copyright, cppcheck, cpplint, lint_cmake, uncrustify, xmllint
 
@@ -80,6 +84,7 @@ if(BUILD_TESTING)
   target_link_libraries(cleaningbot_sim_test 
     gtest 
     gtest_main
+    ament_index_cpp::ament_index_cpp
     ${cleaningbot_sim_LIBS}
   )
 

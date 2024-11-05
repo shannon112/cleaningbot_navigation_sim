@@ -83,6 +83,7 @@ bool RobotPlanner::parsePlanJson(const std::string planJsonStr)
     if (waypoints_.size() < 2)  // assume at least two points
     {
       RCLCPP_ERROR(this->get_logger(), "Number of waypoints is lower than 2, not enough to compute.");
+      return false;
     }
   }
   catch (json::exception& e)

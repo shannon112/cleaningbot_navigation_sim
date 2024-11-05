@@ -33,8 +33,8 @@ private:
   std::shared_ptr<RobotVis> widget_;
 
   // inputs
-  std::array<Eigen::Vector2f, 4> robotContourPoints_;
-  std::array<Eigen::Vector2f, 2> robotGadgetPoints_;
+  std::array<Eigen::Vector2f, 4> robotContourPoints_;  // assume that robot's contour is always four points
+  std::array<Eigen::Vector2f, 2> robotGadgetPoints_;   // assume that robot's gadget is always two points
   std::vector<Eigen::Vector2f> waypoints_;
 
   // data
