@@ -23,32 +23,39 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
 # cleaningbot_sim node
 set(cleaningbot_sim_HDRS
-  include/cleaningbot_navigation_sim/robot_vis.h
+  include
+  ${EIGEN3_INCLUDE_DIR}
+  ${Qt5Widgets_INCLUDE_DIRS}
 )
-qt5_wrap_cpp(cleaningbot_sim_MOCS ${cleaningbot_sim_HDRS})
-
-add_executable(cleaningbot_sim 
+qt5_wrap_cpp(cleaningbot_sim_MOCS include/cleaningbot_navigation_sim/robot_vis.h)
+set(cleaningbot_sim_SRCS
   ${cleaningbot_sim_MOCS}
   src/robot_planner.cpp 
   src/robot_vis.cpp
-  src/main.cpp
 )
-
-target_link_libraries(cleaningbot_sim 
+set(cleaningbot_sim_LIBS
   rclcpp::rclcpp
   ${EIGEN3_LIBRARIES}
   Qt5::Widgets
   nlohmann_json::nlohmann_json
 )
 
+add_executable(cleaningbot_sim 
+  src/main.cpp
+  ${cleaningbot_sim_SRCS}
+)
+
+target_link_libraries(cleaningbot_sim 
+  ${cleaningbot_sim_LIBS}
+)
+
 target_include_directories(cleaningbot_sim PUBLIC
-  include
-  ${EIGEN3_INCLUDE_DIR}
-  ${Qt5Widgets_INCLUDE_DIRS}
+  ${cleaningbot_sim_HDRS}
 )
 
 rosidl_target_interfaces(cleaningbot_sim
-      ${PROJECT_NAME} "rosidl_typesupport_cpp")
+  ${PROJECT_NAME} "rosidl_typesupport_cpp"
+)
 
 install(TARGETS cleaningbot_sim
   DESTINATION lib/${PROJECT_NAME})
@@ -57,9 +64,31 @@ install(DIRECTORY include/
   DESTINATION include/
 )
 
+option(BUILD_TESTING "Enable testing" ON)
 if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  ament_lint_auto_find_test_dependencies()
+  find_package(ament_cmake_gtest REQUIRED)
+  #find_package(ament_lint_auto REQUIRED)
+  #ament_lint_auto_find_test_dependencies() # disabled copyright, cppcheck, cpplint, lint_cmake, uncrustify, xmllint
+
+  ament_add_gtest(cleaningbot_sim_test
+    test/main.cpp
+    test/robot_planner_test.cpp
+    ${cleaningbot_sim_SRCS}
+  )
+
+  target_link_libraries(cleaningbot_sim_test 
+    gtest 
+    gtest_main
+    ${cleaningbot_sim_LIBS}
+  )
+
+  target_include_directories(cleaningbot_sim_test PUBLIC
+    ${cleaningbot_sim_HDRS}
+  )
+
+  rosidl_target_interfaces(cleaningbot_sim_test
+    ${PROJECT_NAME} "rosidl_typesupport_cpp"
+  )
 endif()
 
 ament_package()

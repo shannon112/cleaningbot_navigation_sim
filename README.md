@@ -21,10 +21,17 @@ run cmd
 ros2 run cleaningbot_navigation_sim cleaningbot_sim 
 ros2 service call /load_plan_json cleaningbot_navigation_sim/srv/LoadPlanJson "{"plan_json": "/home/shanlee/ros2_ws/src/cleaningbot_navigation_sim/data/short.json"}"
 ```
-debug cmd
+format cmd
 ```
+cd /path/to/cleaningbot_navigation_sim
 bash format.bash
-// test
+```
+test cmd
+```
+cd /path/to/workspace
+colcon test
+cd build/cleaningbot_navigation_sim
+ctest
 ```
 
 # 2. Mathematic Notes
