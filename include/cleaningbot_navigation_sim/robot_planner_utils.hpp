@@ -17,7 +17,9 @@ inline Eigen::Rotation2D<float> getRotationMat(const Eigen::Vector2f& vecCur, co
 }
 
 // create a plain dense map according to bounding box of the trajactory and the robot
-inline OccupancyMap constructMap(const std::array<Eigen::Vector2f, 4>& robotContourPoints, const std::array<Eigen::Vector2f, 2>& robotGadgetPoints, const std::vector<Eigen::Vector2f>& waypoints, const float mapGridSize_)
+inline OccupancyMap constructMap(const std::array<Eigen::Vector2f, 4>& robotContourPoints,
+                                 const std::array<Eigen::Vector2f, 2>& robotGadgetPoints,
+                                 const std::vector<Eigen::Vector2f>& waypoints, const float mapGridSize_)
 {
   OccupancyMap map;
   map.gridSize = mapGridSize_;
@@ -51,9 +53,11 @@ inline OccupancyMap constructMap(const std::array<Eigen::Vector2f, 4>& robotCont
 }
 
 // downsample the trajectory by extracting key waypoints if there are sufficient offsets
-inline std::vector<Eigen::Vector2f> simplifyTrajectory(const std::vector<Eigen::Vector2f>& waypoints, const float trajectoryDownSamplingDist)
+inline std::vector<Eigen::Vector2f> simplifyTrajectory(const std::vector<Eigen::Vector2f>& waypoints,
+                                                       const float trajectoryDownSamplingDist)
 {
-  if (waypoints.empty()) return {};
+  if (waypoints.empty())
+    return {};
   std::vector<Eigen::Vector2f> waypointsSim = { waypoints[0] };
   for (std::size_t i = 1; i < waypoints.size(); i++)
   {
@@ -66,9 +70,11 @@ inline std::vector<Eigen::Vector2f> simplifyTrajectory(const std::vector<Eigen::
 }
 
 // upsample the trajectory using cubic interpolation
-inline std::vector<Eigen::Vector2f> resampleTrajectory(const std::vector<Eigen::Vector2f>& waypoints, const float trajectoryUpSamplingDist)
+inline std::vector<Eigen::Vector2f> resampleTrajectory(const std::vector<Eigen::Vector2f>& waypoints,
+                                                       const float trajectoryUpSamplingDist)
 {
-  if (waypoints.empty()) return {};
+  if (waypoints.empty())
+    return {};
   std::vector<Eigen::Vector2f> waypointsRe = {};
   for (std::size_t i = 0; i < waypoints.size() - 1; i++)
   {
@@ -104,7 +110,8 @@ inline std::vector<Eigen::Vector2f> resampleTrajectory(const std::vector<Eigen::
 }
 
 // velocity is proportional to the absolute curvature
-inline float curvatureToVelocity(const float curvature, const float curvatureCritical, const float curvatureMax, const float velocityMin, const float velocityMax)
+inline float curvatureToVelocity(const float curvature, const float curvatureCritical, const float curvatureMax,
+                                 const float velocityMin, const float velocityMax)
 {
   if (curvature < curvatureCritical)
   {
@@ -122,10 +129,12 @@ inline float curvatureToVelocity(const float curvature, const float curvatureCri
 }
 
 // estimate velocity using approximated curvature
-inline float estimateVelocity(const std::vector<Eigen::Vector2f>& waypoints, const std::size_t curIdx, const float curvatureApprxDist, const float curvatureCritical, const float curvatureMax, const float velocityMin, const float velocityMax, const float velocityPrev)
+inline float estimateVelocity(const std::vector<Eigen::Vector2f>& waypoints, const std::size_t curIdx,
+                              const float curvatureApprxDist, const float curvatureCritical, const float curvatureMax,
+                              const float velocityMin, const float velocityMax, const float velocityPrev)
 {
-  assert(waypoints.size()>curIdx);
-  assert(waypoints.size()>0);
+  assert(waypoints.size() > curIdx);
+  assert(waypoints.size() > 0);
   if (curIdx == 0)
   {
     return velocityMin;  // assume that initial velocity is velocityMin
@@ -148,13 +157,19 @@ inline float estimateVelocity(const std::vector<Eigen::Vector2f>& waypoints, con
 
     const float theta = acos(prevVec.dot(nextVec) / (prevVec.norm() * nextVec.norm()));
     const float avgLen = (prevVec.norm() + nextVec.norm()) / 2.f;
-    const float curvature = theta / avgLen;                                                // approximation
-    return std::isnan(curvature) ? velocityPrev : curvatureToVelocity(curvature, curvatureCritical, curvatureMax, velocityMin, velocityMax);  // reuse prev vel if k is nan due to points too close
+    const float curvature = theta / avgLen;  // approximation
+    return std::isnan(curvature) ?
+               velocityPrev :
+               curvatureToVelocity(curvature, curvatureCritical, curvatureMax, velocityMin,
+                                   velocityMax);  // reuse prev vel if k is nan due to points too close
   }
 }
 
 // estimate the grids inside the covered area using cross product
-std::vector<Eigen::Vector2i> estimateNewCoveredGridIdsToNext(const OccupancyMap& map, const std::vector<Eigen::Vector2f>& waypoints, const std::size_t curIdx, const std::array<Eigen::Vector2f, 2>& robotGadgetPoints)
+std::vector<Eigen::Vector2i> estimateNewCoveredGridIdsToNext(const OccupancyMap& map,
+                                                             const std::vector<Eigen::Vector2f>& waypoints,
+                                                             const std::size_t curIdx,
+                                                             const std::array<Eigen::Vector2f, 2>& robotGadgetPoints)
 {
   if (curIdx == waypoints.size() - 1)
   {
@@ -208,18 +223,20 @@ std::vector<Eigen::Vector2i> estimateNewCoveredGridIdsToNext(const OccupancyMap&
 
 // apply 2D transformation to points
 template <std::size_t N>
-std::array<Eigen::Vector2f, N> estimateTransformedPoints(const std::array<Eigen::Vector2f, N>& points, const std::vector<Eigen::Vector2f>& waypoints, const std::size_t curIdx)
+std::array<Eigen::Vector2f, N> estimateTransformedPoints(const std::array<Eigen::Vector2f, N>& points,
+                                                         const std::vector<Eigen::Vector2f>& waypoints,
+                                                         const std::size_t curIdx)
 {
-    std::array<Eigen::Vector2f, N> transformedPoints;
-    const Eigen::Rotation2D<float> rotationMat =
-        (curIdx == waypoints.size() - 1) ?
-            getRotationMat(waypoints[waypoints.size() - 2], waypoints[waypoints.size() - 1]) :
-            getRotationMat(waypoints[curIdx], waypoints[curIdx + 1]);
-    for (std::size_t i = 0; i < N; i++)
-    {
-        transformedPoints[i] = rotationMat * points[i] + waypoints[curIdx];
-    }
-    return transformedPoints;
+  std::array<Eigen::Vector2f, N> transformedPoints;
+  const Eigen::Rotation2D<float> rotationMat =
+      (curIdx == waypoints.size() - 1) ?
+          getRotationMat(waypoints[waypoints.size() - 2], waypoints[waypoints.size() - 1]) :
+          getRotationMat(waypoints[curIdx], waypoints[curIdx + 1]);
+  for (std::size_t i = 0; i < N; i++)
+  {
+    transformedPoints[i] = rotationMat * points[i] + waypoints[curIdx];
+  }
+  return transformedPoints;
 }
 
-#endif // ROBOT_PLANNER_UTILS_H
+#endif  // ROBOT_PLANNER_UTILS_H
