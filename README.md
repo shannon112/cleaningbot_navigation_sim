@@ -1,5 +1,5 @@
 # cleaningbot_navigation_sim
-description  
+- This is a coding challenge for karcher robotics for estimating robot, environment and trajectory state.
 - ![image](https://github.com/user-attachments/assets/ea4289c9-59be-4684-a4fd-927bbdf73001) ![image](https://github.com/user-attachments/assets/3832d0fe-a72e-4c77-8c4b-090e5c6e2c50)
  ![image](https://github.com/user-attachments/assets/dcc819bc-c36e-4117-b982-9b9a5258c2c0) 
 - ![image](https://github.com/user-attachments/assets/ce2610ba-5b7e-4ad1-8b2e-55272750e759)
