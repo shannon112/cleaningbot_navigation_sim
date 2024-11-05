@@ -47,7 +47,7 @@ private:
 
   // configs
   const Eigen::Matrix3f initPose =
-      Eigen::Matrix3f::Identity();  // assume that the given robot base_link is at origin with theta=0 pose
+      Eigen::Matrix3f::Identity();  // assume that the given robot description is wrt (0,0) with theta=0
   const float curvatureCritical_ = 0.5f;
   const float curvatureMax_ = 10.f;
   const float velocityMin_ = 0.15f;
