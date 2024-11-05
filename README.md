@@ -29,8 +29,14 @@ test cmd
 ```
 cd /path/to/workspace
 colcon test
-cd build/cleaningbot_navigation_sim
+```
+```
+cd /path/to/workspace/build/cleaningbot_navigation_sim
 ctest
+```
+```
+cd /path/to/workspace
+./build/cleaningbot_navigation_sim/cleaningbot_sim_test
 ```
 
 # 2. Mathematic Notes
