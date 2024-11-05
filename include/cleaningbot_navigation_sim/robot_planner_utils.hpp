@@ -137,7 +137,7 @@ inline float estimateVelocity(const std::vector<Eigen::Vector2f>& waypoints, con
   assert(waypoints.size() > 0);
   if (curIdx == 0)
   {
-    return velocityMin;  // assume that initial velocity is velocityMin
+    return velocityMax;  // assume that initial velocity is velocityMax
   }
   else if (curIdx == waypoints.size() - 1)
   {
