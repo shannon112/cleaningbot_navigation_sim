@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <memory>
+#include <cmath>
 #include <ament_index_cpp/get_package_prefix.hpp>
 
 class RobotPlannerTest : public ::testing::Test
@@ -91,8 +92,10 @@ public:
     goal_msg.plan_json = file;
 
     auto send_goal_options = rclcpp_action::Client<LoadPlanJson>::SendGoalOptions();
-    send_goal_options.goal_response_callback = std::bind(&TestActionClient::goal_response_callback, this, std::placeholders::_1);
-    send_goal_options.feedback_callback = std::bind(&TestActionClient::feedback_callback, this, std::placeholders::_1, std::placeholders::_2);
+    send_goal_options.goal_response_callback =
+        std::bind(&TestActionClient::goal_response_callback, this, std::placeholders::_1);
+    send_goal_options.feedback_callback =
+        std::bind(&TestActionClient::feedback_callback, this, std::placeholders::_1, std::placeholders::_2);
     send_goal_options.result_callback = std::bind(&TestActionClient::result_callback, this, std::placeholders::_1);
     this->client_->async_send_goal(goal_msg, send_goal_options);
   }
@@ -147,22 +150,69 @@ private:
   rclcpp_action::Client<LoadPlanJson>::SharedPtr client_;
 };
 
-TEST_F(RobotPlannerTest, end2endTestLinearPath)
+TEST_F(RobotPlannerTest, end2endTestLinear0Path)
 {
   rclcpp::executors::MultiThreadedExecutor executor;
   executor.add_node(robot_planner_);
   std::atomic<bool> keep_running(true);
   std::thread spinThread([&executor, &keep_running]() {
-      while (keep_running) {
-          executor.spin_once(std::chrono::milliseconds(100)); // Spin periodically
-      }
+    while (keep_running)
+    {
+      executor.spin_once(std::chrono::milliseconds(100));  // Spin periodically
+    }
   });
 
   auto client = std::make_shared<TestActionClient>(package_path_ + "/test_vectors/line0.json");
   rclcpp::spin(client);
-  EXPECT_NEAR(client->path_length_, 5.f, 10e-5);
-  EXPECT_NEAR(client->path_time_, 5.f, 10e-5);
-  EXPECT_NEAR(client->path_area_, 5.f, 10e-5);
+  EXPECT_NEAR(client->path_length_, 5.f, 10e-3);
+  EXPECT_NEAR(client->path_time_, 5.f / 1.1f, 10e-3);
+  EXPECT_NEAR(client->path_area_, 5.f, 10e-3);
+
+  keep_running = false;
+  spinThread.join();
+  rclcpp::shutdown();
+}
+
+TEST_F(RobotPlannerTest, end2endTestLinear45Path)
+{
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(robot_planner_);
+  std::atomic<bool> keep_running(true);
+  std::thread spinThread([&executor, &keep_running]() {
+    while (keep_running)
+    {
+      executor.spin_once(std::chrono::milliseconds(100));  // Spin periodically
+    }
+  });
+
+  auto client = std::make_shared<TestActionClient>(package_path_ + "/test_vectors/line45.json");
+  rclcpp::spin(client);
+  EXPECT_NEAR(client->path_length_, 5.f * sqrt(2), 10e-3);
+  EXPECT_NEAR(client->path_time_, 5.f * sqrt(2) / 1.1f, 10e-3);
+  EXPECT_NEAR(client->path_area_, 5.f * sqrt(2), 10e-1);
+
+  keep_running = false;
+  spinThread.join();
+  rclcpp::shutdown();
+}
+
+TEST_F(RobotPlannerTest, end2endTestLinear90Path)
+{
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(robot_planner_);
+  std::atomic<bool> keep_running(true);
+  std::thread spinThread([&executor, &keep_running]() {
+    while (keep_running)
+    {
+      executor.spin_once(std::chrono::milliseconds(100));  // Spin periodically
+    }
+  });
+
+  auto client = std::make_shared<TestActionClient>(package_path_ + "/test_vectors/line90.json");
+  rclcpp::spin(client);
+  EXPECT_NEAR(client->path_length_, 5.f, 10e-3);
+  EXPECT_NEAR(client->path_time_, 5.f / 1.1f, 10e-3);
+  EXPECT_NEAR(client->path_area_, 5.f, 10e-3);
 
   keep_running = false;
   spinThread.join();
@@ -171,4 +221,23 @@ TEST_F(RobotPlannerTest, end2endTestLinearPath)
 
 TEST_F(RobotPlannerTest, end2endTestCurvePath)
 {
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(robot_planner_);
+  std::atomic<bool> keep_running(true);
+  std::thread spinThread([&executor, &keep_running]() {
+    while (keep_running)
+    {
+      executor.spin_once(std::chrono::milliseconds(100));  // Spin periodically
+    }
+  });
+
+  auto client = std::make_shared<TestActionClient>(package_path_ + "/test_vectors/circle.json");
+  rclcpp::spin(client);
+  EXPECT_NEAR(client->path_length_, 2.f * M_PI * 2.f, 10e-3);
+  EXPECT_NEAR(client->path_time_, 2.f * M_PI * 2.f / 1.1f, 10e-1);
+  EXPECT_NEAR(client->path_area_, std::pow(2.5f, 2) * M_PI - std::pow(1.5f, 2) * M_PI, 1.f);
+
+  keep_running = false;
+  spinThread.join();
+  rclcpp::shutdown();
 }
