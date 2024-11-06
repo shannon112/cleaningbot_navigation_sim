@@ -9,25 +9,57 @@ using json = nlohmann::json;
 
 RobotPlanner::RobotPlanner(std::shared_ptr<RobotVis> widget) : Node("robot_planner"), widget_(widget)
 {
-  timer_ = this->create_wall_timer(samplingTime_, std::bind(&RobotPlanner::timer_callback, this));
-  service_ = this->create_service<cleaningbot_navigation_sim::srv::LoadPlanJson>(
-      "load_plan_json", std::bind(&RobotPlanner::loadPlanJson, this, std::placeholders::_1, std::placeholders::_2));
+  action_server_ = rclcpp_action::create_server<cleaningbot_navigation_sim::action::LoadPlanJson>(
+      this, "load_plan_json", std::bind(&RobotPlanner::handle_goal, this, std::placeholders::_1, std::placeholders::_2),
+      std::bind(&RobotPlanner::handle_cancel, this, std::placeholders::_1),
+      std::bind(&RobotPlanner::handle_accepted, this, std::placeholders::_1));
 }
 
-// service callback function, load and prepare all necessary info
-void RobotPlanner::loadPlanJson(const std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Request> request,
-                                std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Response> response)
+rclcpp_action::GoalResponse RobotPlanner::handle_goal(const rclcpp_action::GoalUUID& uuid,
+                                                      std::shared_ptr<const LoadPlanJson::Goal> goal)
 {
-  // load
-  RCLCPP_INFO(this->get_logger(), "Loading... %s", request->plan_json.c_str());
-  const bool isSuccessfullyLoaded = parsePlanJson(request->plan_json);
+  RCLCPP_INFO(this->get_logger(), "Received goal request with filename %s", goal->plan_json);
+  (void)uuid;
+  return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+}
 
-  response->is_successfully_loaded = isSuccessfullyLoaded;
-  response->num_path_samples = waypoints_.size();
-  RCLCPP_INFO(this->get_logger(), "Loading is %s, there are %u waypoints",
-              response->is_successfully_loaded ? "success" : "failed", response->num_path_samples);
+rclcpp_action::CancelResponse RobotPlanner::handle_cancel(const std::shared_ptr<GoalHandleLoadPlanJson> goal_handle)
+{
+  RCLCPP_INFO(this->get_logger(), "Received request to cancel goal");
+  (void)goal_handle;
+  return rclcpp_action::CancelResponse::ACCEPT;
+}
+
+void RobotPlanner::handle_accepted(const std::shared_ptr<GoalHandleLoadPlanJson> goal_handle)
+{
+  // this needs to return quickly to avoid blocking the executor, so spin up a new thread
+  std::thread{ std::bind(&RobotPlanner::execute, this, std::placeholders::_1), goal_handle }.detach();
+}
+
+void RobotPlanner::execute(const std::shared_ptr<GoalHandleLoadPlanJson> goal_handle)
+{
+  rclcpp::Rate loop_rate(samplingTime_);
+
+  // action msg
+  const auto goal = goal_handle->get_goal();
+  auto feedback = std::make_shared<LoadPlanJson::Feedback>();
+  auto result = std::make_shared<LoadPlanJson::Result>();
+  result->is_successfully_loaded = false;
+  result->num_path_samples = 0;
+  result->path_length = 0.f;
+  result->path_time = 0.f;
+  result->path_area = 0.f;
+
+  // load
+  RCLCPP_INFO(this->get_logger(), "Loading... %s", goal->plan_json.c_str());
+  const bool isSuccessfullyLoaded = parsePlanJson(goal->plan_json);
+
+  RCLCPP_INFO(this->get_logger(), "Loading is %s, there are %u waypoints", isSuccessfullyLoaded ? "success" : "failed",
+              waypoints_.size());
   if (!isSuccessfullyLoaded)
   {
+    goal_handle->succeed(result);
+    clear();
     return;
   }
 
@@ -41,9 +73,89 @@ void RobotPlanner::loadPlanJson(const std::shared_ptr<cleaningbot_navigation_sim
   map_ = constructMap(robotContourPoints_, robotGadgetPoints_, waypoints_, mapGridSize_);
   RCLCPP_INFO(this->get_logger(), "Map origin (%f, %f), Dimension (%d, %d), Grid size %f", map_.origin[0],
               map_.origin[1], map_.grids.rows(), map_.grids.cols(), map_.gridSize);
+
   if (widget_)
-  {
     widget_->setupVis(map_, waypoints_);
+
+  // main loop
+  Status prevStatus;
+  for (std::size_t curIdx = 0; curIdx < waypoints_.size() && rclcpp::ok(); ++curIdx)
+  {
+    if (goal_handle->is_canceling())
+    {
+      goal_handle->canceled(result);
+      clear();
+      return;
+    }
+
+    RCLCPP_INFO(this->get_logger(), "---reading dataframe %d---", curIdx);
+    Status curStatus;
+    feedback->iteration = curIdx;
+    goal_handle->publish_feedback(feedback);
+
+    // position
+    curStatus.position = waypoints_[curIdx];
+    RCLCPP_INFO(this->get_logger(), "position (%f, %f)", curStatus.position[0], curStatus.position[1]);
+
+    // velocity
+    curStatus.velocity = estimateVelocity(waypoints_, curIdx, curvatureApprxDist_, curvatureCritical_, curvatureMax_,
+                                          velocityMin_, velocityMax_, prevStatus.velocity);
+    RCLCPP_INFO(this->get_logger(), "velocity %f", curStatus.velocity);
+
+    // distnace
+    curStatus.distanceToNext =
+        (curIdx == waypoints_.size() - 1) ? 0.f : (waypoints_[curIdx + 1] - waypoints_[curIdx]).norm();
+    curStatus.distanceSoFar = prevStatus.distanceToNext + prevStatus.distanceSoFar;
+    RCLCPP_INFO(this->get_logger(), "distanceToNext %f distanceSoFar %f", curStatus.distanceToNext,
+                curStatus.distanceSoFar);
+
+    // duration
+    curStatus.durationToNext = (curIdx == waypoints_.size() - 1) ? 0.f : curStatus.distanceToNext / curStatus.velocity;
+    curStatus.durationSoFar = prevStatus.durationSoFar + prevStatus.durationToNext;
+    RCLCPP_INFO(this->get_logger(), "durationToNext %f durationSoFar %f", curStatus.durationToNext,
+                curStatus.durationSoFar);
+
+    // area
+    curStatus.coveredGridIdsPrevToCur = prevStatus.newCoveredGridIdsToNext;
+    for (const auto gridId : prevStatus.newCoveredGridIdsToNext)
+      map_.grids(gridId[1], gridId[0]) = true;  // rowId, colId
+    curStatus.coveredAreaSoFar = prevStatus.newCoveredAreaToNext + prevStatus.coveredAreaSoFar;
+    curStatus.newCoveredGridIdsToNext = estimateNewCoveredGridIdsToNext(map_, waypoints_, curIdx, robotGadgetPoints_);
+    curStatus.newCoveredAreaToNext = curStatus.newCoveredGridIdsToNext.size() * std::pow(map_.gridSize, 2);
+    RCLCPP_INFO(this->get_logger(), "coveredAreaSoFar %f newCoveredAreaToNext %f", curStatus.coveredAreaSoFar,
+                curStatus.newCoveredAreaToNext);
+
+    // gadget
+    curStatus.gadget = estimateTransformedPoints(robotGadgetPoints_, waypoints_, curIdx);
+    RCLCPP_INFO(this->get_logger(), "gadget (%f, %f) (%f, %f)", curStatus.gadget[0][0], curStatus.gadget[0][1],
+                curStatus.gadget[1][0], curStatus.gadget[1][1]);
+
+    // footprint
+    curStatus.footprint = estimateTransformedPoints(robotContourPoints_, waypoints_, curIdx);
+    RCLCPP_INFO(this->get_logger(), "footprint rear (%f, %f) (%f, %f)", curStatus.footprint[0][0],
+                curStatus.footprint[0][1], curStatus.footprint[1][0], curStatus.footprint[1][1]);
+    RCLCPP_INFO(this->get_logger(), "footprint front (%f, %f) (%f, %f)", curStatus.footprint[2][0],
+                curStatus.footprint[2][1], curStatus.footprint[3][0], curStatus.footprint[3][1]);
+
+    if (widget_)
+      widget_->updateVis(curStatus);
+
+    // ending
+    prevStatus = curStatus;
+    loop_rate.sleep();
+  }
+
+  // result
+  if (rclcpp::ok())
+  {
+    result->is_successfully_loaded = true;
+    result->num_path_samples = waypoints_.size();
+    result->path_length = prevStatus.distanceSoFar;
+    result->path_time = prevStatus.durationSoFar;
+    result->path_area = prevStatus.coveredAreaSoFar;
+    goal_handle->succeed(result);
+    RCLCPP_INFO(this->get_logger(), "Goal succeeded");
+    clear();
   }
 }
 
@@ -102,86 +214,11 @@ bool RobotPlanner::parsePlanJson(const std::string planJsonStr)
   return true;
 }
 
-// main loop for state estimation
-void RobotPlanner::timer_callback()
-{
-  if (curIdx_ >= waypoints_.size())
-  {
-    clear();  // assume that we clean the data after finished
-    return;
-  }
-  if (waypoints_.empty())
-  {
-    return;  // waiting for data inputs
-  }
-  RCLCPP_INFO(this->get_logger(), "---reading dataframe %d---", curIdx_);
-
-  Status curStatus;
-
-  // position
-  curStatus.position = waypoints_[curIdx_];
-  RCLCPP_INFO(this->get_logger(), "position (%f, %f)", curStatus.position[0], curStatus.position[1]);
-
-  // velocity
-  curStatus.velocity = estimateVelocity(waypoints_, curIdx_, curvatureApprxDist_, curvatureCritical_, curvatureMax_,
-                                        velocityMin_, velocityMax_, prevStatus_.velocity);
-  RCLCPP_INFO(this->get_logger(), "velocity %f", curStatus.velocity);
-
-  // distnace
-  curStatus.distanceToNext =
-      (curIdx_ == waypoints_.size() - 1) ? 0.f : (waypoints_[curIdx_ + 1] - waypoints_[curIdx_]).norm();
-  curStatus.distanceSoFar = prevStatus_.distanceToNext + prevStatus_.distanceSoFar;
-  RCLCPP_INFO(this->get_logger(), "distanceToNext %f distanceSoFar %f", curStatus.distanceToNext,
-              curStatus.distanceSoFar);
-
-  // duration
-  curStatus.durationToNext = (curIdx_ == waypoints_.size() - 1) ? 0.f : curStatus.distanceToNext / curStatus.velocity;
-  curStatus.durationSoFar = prevStatus_.durationSoFar + prevStatus_.durationToNext;
-  RCLCPP_INFO(this->get_logger(), "durationToNext %f durationSoFar %f", curStatus.durationToNext,
-              curStatus.durationSoFar);
-
-  // area
-  curStatus.coveredGridIdsPrevToCur = prevStatus_.newCoveredGridIdsToNext;
-  for (const auto gridId : prevStatus_.newCoveredGridIdsToNext)
-  {
-    map_.grids(gridId[1], gridId[0]) = true;  // rowId, colId
-  }
-  curStatus.coveredAreaSoFar = prevStatus_.newCoveredAreaToNext + prevStatus_.coveredAreaSoFar;
-  curStatus.newCoveredGridIdsToNext = estimateNewCoveredGridIdsToNext(map_, waypoints_, curIdx_, robotGadgetPoints_);
-  curStatus.newCoveredAreaToNext = curStatus.newCoveredGridIdsToNext.size() * std::pow(map_.gridSize, 2);
-  RCLCPP_INFO(this->get_logger(), "coveredAreaSoFar %f newCoveredAreaToNext %f", curStatus.coveredAreaSoFar,
-              curStatus.newCoveredAreaToNext);
-
-  // gadget
-  curStatus.gadget = estimateTransformedPoints(robotGadgetPoints_, waypoints_, curIdx_);
-  RCLCPP_INFO(this->get_logger(), "gadget (%f, %f) (%f, %f)", curStatus.gadget[0][0], curStatus.gadget[0][1],
-              curStatus.gadget[1][0], curStatus.gadget[1][1]);
-
-  // footprint
-  curStatus.footprint = estimateTransformedPoints(robotContourPoints_, waypoints_, curIdx_);
-  RCLCPP_INFO(this->get_logger(), "footprint rear (%f, %f) (%f, %f)", curStatus.footprint[0][0],
-              curStatus.footprint[0][1], curStatus.footprint[1][0], curStatus.footprint[1][1]);
-  RCLCPP_INFO(this->get_logger(), "footprint front (%f, %f) (%f, %f)", curStatus.footprint[2][0],
-              curStatus.footprint[2][1], curStatus.footprint[3][0], curStatus.footprint[3][1]);
-
-  // vis
-  if (widget_)
-  {
-    widget_->updateVis(curStatus);
-  }
-
-  // ending
-  curIdx_++;
-  prevStatus_ = curStatus;
-}
-
 void RobotPlanner::clear()
 {
   robotContourPoints_ = {};
   robotGadgetPoints_ = {};
   waypoints_.clear();
-  curIdx_ = 0;
-  prevStatus_ = {};
   map_ = {};
 }
 

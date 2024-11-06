@@ -2,8 +2,9 @@
 #define ROBOT_PLANNER_H
 
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 
-#include "cleaningbot_navigation_sim/srv/load_plan_json.hpp"
+#include "cleaningbot_navigation_sim/action/load_plan_json.hpp"
 #include "cleaningbot_navigation_sim/robot_vis.h"
 #include "cleaningbot_navigation_sim/robot_status.h"
 #include "cleaningbot_navigation_sim/occupancy_map.h"
@@ -16,6 +17,9 @@ using namespace std::chrono_literals;
 class RobotPlanner : public rclcpp::Node
 {
 public:
+  using LoadPlanJson = cleaningbot_navigation_sim::action::LoadPlanJson;
+  using GoalHandleLoadPlanJson = rclcpp_action::ServerGoalHandle<LoadPlanJson>;
+
   RobotPlanner(std::shared_ptr<RobotVis> widget);
   bool parsePlanJson(const std::string planJsonStr);
   const std::array<Eigen::Vector2f, 4>& getRobotContourPoints() const;
@@ -23,23 +27,21 @@ public:
   const std::vector<Eigen::Vector2f>& getWaypoints() const;
 
 private:
-  void loadPlanJson(const std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Request> request,
-                    std::shared_ptr<cleaningbot_navigation_sim::srv::LoadPlanJson::Response> response);
-  void timer_callback();
+  rclcpp_action::GoalResponse handle_goal(const rclcpp_action::GoalUUID& uuid,
+                                          std::shared_ptr<const LoadPlanJson::Goal> goal);
+  rclcpp_action::CancelResponse handle_cancel(const std::shared_ptr<GoalHandleLoadPlanJson> goal_handle);
+  void handle_accepted(const std::shared_ptr<GoalHandleLoadPlanJson> goal_handle);
+  void execute(const std::shared_ptr<GoalHandleLoadPlanJson> goal_handle);
   void clear();
 
   rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Service<cleaningbot_navigation_sim::srv::LoadPlanJson>::SharedPtr service_;
+  rclcpp_action::Server<cleaningbot_navigation_sim::action::LoadPlanJson>::SharedPtr action_server_;
   std::shared_ptr<RobotVis> widget_;
 
-  // inputs
+  // data
   std::array<Eigen::Vector2f, 4> robotContourPoints_;  // assume that robot's contour is always four points
   std::array<Eigen::Vector2f, 2> robotGadgetPoints_;   // assume that robot's gadget is always two points
   std::vector<Eigen::Vector2f> waypoints_;
-
-  // data
-  std::size_t curIdx_ = 0;
-  Status prevStatus_;
   OccupancyMap map_;
 
   // configs

@@ -15,10 +15,11 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
+find_package(rclcpp_action REQUIRED)
 
-# customized msg/srv
+# customized action msg
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "srv/LoadPlanJson.srv"
+  "action/LoadPlanJson.action"
 )
 
 # cleaningbot_sim node
@@ -35,6 +36,7 @@ set(cleaningbot_sim_SRCS
 )
 set(cleaningbot_sim_LIBS
   rclcpp::rclcpp
+  rclcpp_action::rclcpp_action
   ${EIGEN3_LIBRARIES}
   Qt5::Widgets
   nlohmann_json::nlohmann_json

@@ -1,0 +1,9 @@
+string plan_json
+---
+bool is_successfully_loaded
+uint32 num_path_samples
+float32 path_length
+float32 path_time
+float32 path_area
+---
+uint64 iteration

@@ -26,6 +26,7 @@
   <depend>rclcpp</depend>
   <depend>nlohmann_json</depend>
   <depend>Eigen3</depend>
+  <depend>rclcpp_action</depend>
 
   <member_of_group>rosidl_interface_packages</member_of_group>
 
