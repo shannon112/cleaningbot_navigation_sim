@@ -18,7 +18,7 @@ colcon build --symlink-install
 run cmd  
 ```
 ros2 run cleaningbot_navigation_sim cleaningbot_sim 
-ros2 service call /load_plan_json cleaningbot_navigation_sim/srv/LoadPlanJson "{"plan_json": "/home/shanlee/ros2_ws/src/cleaningbot_navigation_sim/data/short.json"}"
+ros2 action send_goal /load_plan_json cleaningbot_navigation_sim/action/LoadPlanJson "{"plan_json": "/home/shanlee/ros2_ws/src/cleaningbot_navigation_sim/data/short.json"}"
 ```
 format cmd
 ```
