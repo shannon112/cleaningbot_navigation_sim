@@ -230,6 +230,10 @@ std::array<Eigen::Vector2f, N> estimateTransformedPoints(const std::array<Eigen:
                                                          const std::vector<Eigen::Vector2f>& waypoints,
                                                          const std::size_t curIdx)
 {
+  if (waypoints.size() < 2 || curIdx > waypoints.size() - 1)
+  {
+    return points;
+  }
   std::array<Eigen::Vector2f, N> transformedPoints;
   const Eigen::Rotation2D<float> rotationMat =
       (curIdx == waypoints.size() - 1) ?

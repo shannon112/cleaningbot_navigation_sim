@@ -255,7 +255,18 @@ bool compareVectors(const std::array<Eigen::Vector2f, 2>& vec1, const std::array
   return true;
 }
 
-TEST(RobotPlannerUtilsTest, estimateTransformedPoints)
+TEST(RobotPlannerUtilsTest, estimateTransformedPointsInvalid)
+{
+  const std::array<Eigen::Vector2f, 2> shape = { Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(1.f, 0.f) };
+  const std::vector<Eigen::Vector2f> waypoints0 = {};
+  const std::vector<Eigen::Vector2f> waypoints1 = { Eigen::Vector2f(0.f, 0.f) };
+  const std::vector<Eigen::Vector2f> waypoints2 = { Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(1.f, 0.f) };
+  EXPECT_TRUE(compareVectors(shape, estimateTransformedPoints(shape, waypoints0, 0)));
+  EXPECT_TRUE(compareVectors(shape, estimateTransformedPoints(shape, waypoints1, 0)));
+  EXPECT_TRUE(compareVectors(shape, estimateTransformedPoints(shape, waypoints2, 2)));
+}
+
+TEST(RobotPlannerUtilsTest, estimateTransformedPointsAtTheBeginningValid)
 {
   const std::size_t curIdx = 0;
   const std::array<Eigen::Vector2f, 2> shape = { Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(1.f, 0.f) };
@@ -278,4 +289,12 @@ TEST(RobotPlannerUtilsTest, estimateTransformedPoints)
   EXPECT_TRUE(compareVectors(expectedShape90, estShape90));
   EXPECT_TRUE(compareVectors(expectedShape180, estShape180));
   EXPECT_TRUE(compareVectors(expectedShape270, estShape270));
+}
+
+TEST(RobotPlannerUtilsTest, estimateTransformedPointsAtTheEndValid)
+{
+  const std::array<Eigen::Vector2f, 2> shape = { Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(1.f, 0.f) };
+  const std::array<Eigen::Vector2f, 2> expectedShape = { Eigen::Vector2f(0.f, 1.f), Eigen::Vector2f(0.f, 2.f) };
+  const std::vector<Eigen::Vector2f> waypoints2 = { Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(0.f, 1.f) };
+  EXPECT_TRUE(compareVectors(expectedShape, estimateTransformedPoints(shape, waypoints2, 1)));
 }
