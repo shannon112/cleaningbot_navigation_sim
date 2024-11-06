@@ -43,17 +43,13 @@ inline OccupancyMap constructMap(const std::array<Eigen::Vector2f, 4>& robotCont
   const float linkMaxLen = *std::max_element(robotPointLens.begin(), robotPointLens.end());
   const Eigen::Vector2f bottomleftMostPoint(leftMost - linkMaxLen, bottomMost - linkMaxLen);
   const Eigen::Vector2f topRightMostPoint(rightMost + linkMaxLen, topMost + linkMaxLen);
-  const Eigen::Vector2i bottomleftMostGridIdx = (bottomleftMostPoint / map.gridSize).array().floor().cast<int>();
-  const Eigen::Vector2i topRightGridIdx = (topRightMostPoint / map.gridSize).array().floor().cast<int>();
-  map.origin = bottomleftMostGridIdx.cast<float>() * map.gridSize;
-
+  const Eigen::Vector2i bottomleftMostGridIdx = (bottomleftMostPoint / mapGridSize).array().floor().cast<int>();
+  const Eigen::Vector2i topRightGridIdx = (topRightMostPoint / mapGridSize).array().floor().cast<int>();
   const Eigen::Vector2i heightWidth = topRightGridIdx - bottomleftMostGridIdx + Eigen::Vector2i(1, 1);
 
-  if (heightWidth[1] <= 0 || heightWidth[0] <= 0)
-    return map;
-
-  map.grids = Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>::Zero(heightWidth[1], heightWidth[0]);
   map.gridSize = mapGridSize;
+  map.origin = bottomleftMostGridIdx.cast<float>() * mapGridSize;
+  map.grids = Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>::Zero(heightWidth[1], heightWidth[0]);
   return map;
 }
 

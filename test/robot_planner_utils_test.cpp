@@ -37,6 +37,21 @@ TEST(RobotPlannerUtilsTest, constructMapWithoutPoints)
   EXPECT_EQ(map.grids.cols(), 0);
 }
 
+TEST(RobotPlannerUtilsTest, constructMapWithOnePoint)
+{
+  const std::array<Eigen::Vector2f, 4> robotContourPoints = { Eigen::Vector2f(-0.f, -0.f), Eigen::Vector2f(-0.f, 0.f),
+                                                              Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(0.f, -0.f) };
+  const std::array<Eigen::Vector2f, 2>& robotGadgetPoints = { Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(0.f, 0.f) };
+  const std::vector<Eigen::Vector2f> waypoints = { Eigen::Vector2f(3.f, 3.f) };
+  const float gridSize = 1.f;
+  OccupancyMap map = constructMap(robotContourPoints, robotGadgetPoints, waypoints, gridSize);
+  EXPECT_EQ(map.gridSize, 1.f);
+  EXPECT_EQ(map.origin[0], 3.f);
+  EXPECT_EQ(map.origin[1], 3.f);
+  EXPECT_EQ(map.grids.rows(), 1);
+  EXPECT_EQ(map.grids.cols(), 1);
+}
+
 TEST(RobotPlannerUtilsTest, constructMapWithPaddingForRobot)
 {
   const std::array<Eigen::Vector2f, 4> robotContourPoints = { Eigen::Vector2f(-0.5f, -0.5f),
