@@ -1,8 +1,7 @@
 # cleaningbot_navigation_sim
-- This is a coding challenge for karcher robotics for estimating robot, environment and trajectory state.
-- ![image](https://github.com/user-attachments/assets/5e3f395d-aae5-498a-84b9-7b9018b3b065)
-- ![image](https://github.com/user-attachments/assets/ce2610ba-5b7e-4ad1-8b2e-55272750e759)
-- ![image](https://github.com/user-attachments/assets/d7398d6e-c129-499a-9edd-3aa38d1ac07a)
+- This is a coding challenge for karcher robotics for estimating robot, environment and trajectory state given a trajectory and robot descriptions.
+- Demo video: https://youtu.be/hopSYvNyStg
+- ![image](https://github.com/user-attachments/assets/575c6042-cd36-42c9-8e8c-03fc62f1a1b0)
 
 # 1. Build & Run
 dependencies cmd
@@ -62,24 +61,30 @@ cd /path/to/workspace
   - `dt = dL / dv`
   - `t = sum(|veci|/vi), i=[a,b]`
 ## Interpolation
-  - ![img](https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Comparison_of_1D_and_2D_interpolation.svg/375px-Comparison_of_1D_and_2D_interpolation.svg.png) [5]
-  - cublic spline interpolation [6]
+  - cublic Hermite spline interpolation [5][6]
+  - ![image](https://blog.demofox.org/wp-content/uploads/2015/08/cubichermite.png?w=800)
   - ![image](https://github.com/user-attachments/assets/92dc1118-157d-4641-ad05-e6f7bff5e9b5)
-## Flood-Fill algo
-  - ![image](https://github.com/user-attachments/assets/c84cce9a-05fe-44c6-83fc-1fb4a25c3fbb) [7]
-  - ![img](https://upload.wikimedia.org/wikipedia/commons/7/7e/Recursive_Flood_Fill_4_%28aka%29.gif)
 ## DDA Raycasting algo
-  - DDA is a fast algorithm typically used on square grids to find which squares a line hits (for example to draw a line on a screen, which is a grid of square pixels). [8]
+  - DDA is a fast algorithm typically used on square grids to find which squares a line hits (for example to draw a line on a screen, which is a grid of square pixels). [7]
   - ![image](https://github.com/user-attachments/assets/c4a7636c-8a9f-427d-a34a-70a50c41db60)
+## Flood-Fill algo
+  - Flood fill is a flooding algorithm that determines and alters the area connected to a given node in 2D. [8]
+  - ![image](https://github.com/user-attachments/assets/c84cce9a-05fe-44c6-83fc-1fb4a25c3fbb) 
+  - ![img](https://upload.wikimedia.org/wikipedia/commons/7/7e/Recursive_Flood_Fill_4_%28aka%29.gif)
 ## arctan2
-## line and the cross product
+  - atan2 can have the angle measure in radians with − π < θ ≤ π.
+  - <img src="https://upload.wikimedia.org/wikipedia/commons/7/7a/Atan2_differs_from_arctan.png" width=250/> <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Arctangent2.svg/330px-Arctangent2.svg.png" width=250/> 
+## line and the cross product [10]
+  - ![image](https://github.com/user-attachments/assets/a98b194c-6597-4a34-8309-c3079609815e)
 
 # 3. Ref
 - [1] https://en.wikipedia.org/wiki/Curvature
 - [2] https://math.stackexchange.com/questions/2445037/numerical-approach-to-find-curvature
 - [3] Belyaev, Alexander G. "A note on invariant three-point curvature approximations (singularity theory and differential equations)." 1111 (1999): 157-164.
 - [4] https://tutorial.math.lamar.edu/classes/calcii/arclength.aspx
-- [5] https://en.wikipedia.org/wiki/Bicubic_interpolation
-- [6] https://en.wikipedia.org/wiki/Cubic_Hermite_spline
-- [7] https://en.wikipedia.org/wiki/Flood_fill
-- [8] https://lodev.org/cgtutor/raycasting.html
+- [5] https://en.wikipedia.org/wiki/Cubic_Hermite_spline
+- [6]https://blog.demofox.org/2015/08/08/cubic-hermite-interpolation/
+- [7] https://lodev.org/cgtutor/raycasting.html
+- [8] https://en.wikipedia.org/wiki/Flood_fill
+- [9] https://en.wikipedia.org/wiki/Atan2
+- [10] https://stackoverflow.com/questions/1560492/how-to-tell-whether-a-point-is-to-the-right-or-left-side-of-a-line
