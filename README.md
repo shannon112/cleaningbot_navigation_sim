@@ -6,6 +6,7 @@
 # 1. Build & Run
 dependencies cmd
 ```
+sudo apt install ros-foxy-desktop python3-argcomplete
 sudo apt install clang-format-9
 sudo apt install nlohmann-json3-dev
 sudo apt install libeigen3-dev
