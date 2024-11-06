@@ -93,7 +93,7 @@ TEST(RobotPlannerUtilsTest, constructMap)
 {
 }
 
-TEST(RobotPlannerUtilsTest, simplifyTrajectoryReturnEmpty)
+TEST(RobotPlannerUtilsTest, simplifyTrajectoryInvaid)
 {
   const std::vector<Eigen::Vector2f> waypoints = { Eigen::Vector2f(0.f, 0.f) };
   const std::vector<Eigen::Vector2f> waypointsEmpty = {};
@@ -139,7 +139,7 @@ TEST(RobotPlannerUtilsTest, resampleTrajectoryReturnEmpty)
   EXPECT_TRUE(waypointsEmpty == resampleTrajectory(waypoints, 1));
 }
 
-TEST(RobotPlannerUtilsTest, resampleTrajectoryWithOnePoint)
+TEST(RobotPlannerUtilsTest, resampleTrajectoryInvaid)
 {
   const std::vector<Eigen::Vector2f> waypointOne = { Eigen::Vector2f(0.f, 0.f) };
   EXPECT_TRUE(waypointOne == resampleTrajectory(waypointOne, 2));
@@ -238,8 +238,104 @@ TEST(RobotPlannerUtilsTest, estimateVelocityApproximation)
   EXPECT_TRUE(v1 == v2 && v2 == v3);
 }
 
-TEST(RobotPlannerUtilsTest, estimateNewCoveredGridIdsToNext)
+TEST(RobotPlannerUtilsTest, estimateNewCoveredGridIdsToNextAtTheEnd)
 {
+  const int width = 5;
+  const int height = 5;
+  OccupancyMap map;
+  map.grids = Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>::Zero(width, height);
+  map.origin = { 0.f, 0.f };
+  map.gridSize = 1.f;
+  const std::array<Eigen::Vector2f, 2> robotGadgetPoints = { Eigen::Vector2f(0.f, 0.5f), Eigen::Vector2f(0.f, -0.5f) };
+  const std::vector<Eigen::Vector2f> waypoints = { Eigen::Vector2f(0.f, 3.f), Eigen::Vector2f(1.f, 3.f) };
+
+  EXPECT_TRUE(estimateNewCoveredGridIdsToNext(map, waypoints, 1, robotGadgetPoints).empty());
+  EXPECT_FALSE(estimateNewCoveredGridIdsToNext(map, waypoints, 0, robotGadgetPoints).empty());
+}
+
+TEST(RobotPlannerUtilsTest, estimateNewCoveredGridIdsToNextWithoutPath)
+{
+  const int width = 5;
+  const int height = 5;
+  OccupancyMap map;
+  map.grids = Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>::Zero(width, height);
+  map.origin = { 0.f, 0.f };
+  map.gridSize = 1.f;
+  const std::array<Eigen::Vector2f, 2> robotGadgetPoints = { Eigen::Vector2f(0.f, 0.5f), Eigen::Vector2f(0.f, -0.5f) };
+
+  const std::vector<Eigen::Vector2f> twoWaypoints = { Eigen::Vector2f(0.f, 3.f), Eigen::Vector2f(1.f, 3.f) };
+  const std::vector<Eigen::Vector2f> oneWaypoints = { Eigen::Vector2f(1.f, 3.f) };
+  const std::vector<Eigen::Vector2f> noWaypoints = {};
+
+  EXPECT_TRUE(estimateNewCoveredGridIdsToNext(map, oneWaypoints, 0, robotGadgetPoints).empty());
+  EXPECT_TRUE(estimateNewCoveredGridIdsToNext(map, noWaypoints, 0, robotGadgetPoints).empty());
+  EXPECT_TRUE(estimateNewCoveredGridIdsToNext(map, twoWaypoints, 2, robotGadgetPoints).empty());
+  EXPECT_FALSE(estimateNewCoveredGridIdsToNext(map, twoWaypoints, 0, robotGadgetPoints).empty());
+}
+
+TEST(RobotPlannerUtilsTest, estimateNewCoveredGridIdsToNextWithoutGadget)
+{
+  const int width = 5;
+  const int height = 5;
+  OccupancyMap map;
+  map.grids = Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>::Zero(width, height);
+  map.origin = { 0.f, 0.f };
+  map.gridSize = 1.f;
+  const std::vector<Eigen::Vector2f> waypoints = { Eigen::Vector2f(0.f, 3.f), Eigen::Vector2f(1.f, 3.f) };
+  const std::size_t curIdx = 0;
+
+  const std::array<Eigen::Vector2f, 2> robotGadgetPointsNo = { Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(0.f, 0.f) };
+  EXPECT_TRUE(estimateNewCoveredGridIdsToNext(map, waypoints, curIdx, robotGadgetPointsNo).empty());
+  const std::array<Eigen::Vector2f, 2> robotGadgetPoints = { Eigen::Vector2f(0.f, 0.5f), Eigen::Vector2f(0.f, -0.5f) };
+  EXPECT_FALSE(estimateNewCoveredGridIdsToNext(map, waypoints, curIdx, robotGadgetPoints).empty());
+}
+
+TEST(RobotPlannerUtilsTest, estimateNewCoveredGridIdsToNextWithoutMap)
+{
+  OccupancyMap map;
+  map.origin = { 0.f, 0.f };
+  const std::vector<Eigen::Vector2f> waypoints = { Eigen::Vector2f(0.f, 3.f), Eigen::Vector2f(1.f, 3.f) };
+  const std::array<Eigen::Vector2f, 2> robotGadgetPoints = { Eigen::Vector2f(0.f, 0.5f), Eigen::Vector2f(0.f, -0.5f) };
+  const std::size_t curIdx = 0;
+
+  map.gridSize = 1.f;
+  EXPECT_TRUE(estimateNewCoveredGridIdsToNext(map, waypoints, curIdx, robotGadgetPoints).empty());
+  const int width = 5;
+  const int height = 5;
+  map.grids = Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>::Zero(width, height);
+  EXPECT_FALSE(estimateNewCoveredGridIdsToNext(map, waypoints, curIdx, robotGadgetPoints).empty());
+  map.gridSize = 0.f;
+  EXPECT_TRUE(estimateNewCoveredGridIdsToNext(map, waypoints, curIdx, robotGadgetPoints).empty());
+  map.gridSize = 1.f;
+  EXPECT_FALSE(estimateNewCoveredGridIdsToNext(map, waypoints, curIdx, robotGadgetPoints).empty());
+}
+
+TEST(RobotPlannerUtilsTest, estimateNewCoveredGridIdsToNextToyCases)
+{
+  const int width = 5;
+  const int height = 5;
+  OccupancyMap map;
+  map.grids = Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>::Zero(width, height);
+  map.origin = { 0.f, 0.f };
+  map.gridSize = 1.f;
+  const std::size_t curIdx = 0;
+  const std::array<Eigen::Vector2f, 2> robotGadgetPoints = { Eigen::Vector2f(0.f, 0.5f), Eigen::Vector2f(0.f, -0.5f) };
+
+  // step on grid to cover
+  const std::vector<Eigen::Vector2f> waypointsToGrid = { Eigen::Vector2f(0.f, 3.f), Eigen::Vector2f(1.f, 3.f) };
+  const std::vector<Eigen::Vector2i> expectedCovered2 = { Eigen::Vector2i(0, 2), Eigen::Vector2i(0, 3) };
+  EXPECT_TRUE(expectedCovered2 == estimateNewCoveredGridIdsToNext(map, waypointsToGrid, curIdx, robotGadgetPoints));
+
+  // step on center to cover
+  const std::vector<Eigen::Vector2f> waypointsToCenter = { Eigen::Vector2f(0.f, 3.f), Eigen::Vector2f(1.5f, 3.f) };
+  const std::vector<Eigen::Vector2i> expectedCovered4 = { Eigen::Vector2i(0, 2), Eigen::Vector2i(0, 3),
+                                                          Eigen::Vector2i(1, 2), Eigen::Vector2i(1, 3) };
+  EXPECT_TRUE(expectedCovered4 == estimateNewCoveredGridIdsToNext(map, waypointsToCenter, curIdx, robotGadgetPoints));
+
+  // step is too small to cover
+  const std::vector<Eigen::Vector2f> waypointsSmall = { Eigen::Vector2f(0.f, 3.f), Eigen::Vector2f(0.49f, 3.f) };
+  const std::vector<Eigen::Vector2i> expectedCovered0 = {};
+  EXPECT_TRUE(expectedCovered0 == estimateNewCoveredGridIdsToNext(map, waypointsSmall, curIdx, robotGadgetPoints));
 }
 
 bool compareVectors(const std::array<Eigen::Vector2f, 2>& vec1, const std::array<Eigen::Vector2f, 2>& vec2,

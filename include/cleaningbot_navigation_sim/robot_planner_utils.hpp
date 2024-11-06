@@ -19,13 +19,11 @@ inline Eigen::Rotation2D<float> getRotationMat(const Eigen::Vector2f& vecCur, co
 // create a plain dense map according to bounding box of the trajactory and the robot
 inline OccupancyMap constructMap(const std::array<Eigen::Vector2f, 4>& robotContourPoints,
                                  const std::array<Eigen::Vector2f, 2>& robotGadgetPoints,
-                                 const std::vector<Eigen::Vector2f>& waypoints, const float mapGridSize_)
+                                 const std::vector<Eigen::Vector2f>& waypoints, const float mapGridSize)
 {
   OccupancyMap map;
-  if (waypoints.empty() || mapGridSize_ < std::numeric_limits<float>::epsilon())
+  if (waypoints.empty() || mapGridSize < std::numeric_limits<float>::epsilon())
     return map;
-
-  map.gridSize = mapGridSize_;
 
   float leftMost = std::numeric_limits<float>::max();
   float rightMost = std::numeric_limits<float>::min();
@@ -50,7 +48,12 @@ inline OccupancyMap constructMap(const std::array<Eigen::Vector2f, 4>& robotCont
   map.origin = bottomleftMostGridIdx.cast<float>() * map.gridSize;
 
   const Eigen::Vector2i heightWidth = topRightGridIdx - bottomleftMostGridIdx + Eigen::Vector2i(1, 1);
+
+  if (heightWidth[1] <= 0 || heightWidth[0] <= 0)
+    return map;
+
   map.grids = Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>::Zero(heightWidth[1], heightWidth[0]);
+  map.gridSize = mapGridSize;
   return map;
 }
 
@@ -174,7 +177,15 @@ inline std::vector<Eigen::Vector2i>
 estimateNewCoveredGridIdsToNext(const OccupancyMap& map, const std::vector<Eigen::Vector2f>& waypoints,
                                 const std::size_t curIdx, const std::array<Eigen::Vector2f, 2>& robotGadgetPoints)
 {
-  if (curIdx == waypoints.size() - 1)
+  if (waypoints.size() < 2 || curIdx >= waypoints.size() - 1)
+  {
+    return {};
+  }
+  if ((robotGadgetPoints[0] - robotGadgetPoints[1]).norm() < 10e-5)
+  {
+    return {};
+  }
+  if (map.gridSize < 10e-5 || map.grids.cols() == 0 || map.grids.rows() == 0)
   {
     return {};
   }
