@@ -182,8 +182,60 @@ TEST(RobotPlannerUtilsTest, curvatureToVelocity)
             curvatureToVelocity(curvatureCritical, curvatureCritical, curvatureMax, velocityMin, velocityMax));
 }
 
-TEST(RobotPlannerUtilsTest, estimateVelocity)
+TEST(RobotPlannerUtilsTest, estimateVelocityBeginMidEnd)
 {
+  const std::vector<Eigen::Vector2f> waypoints = { Eigen::Vector2f(0.0f, 0.0f), Eigen::Vector2f(2.0f, 2.0f),
+                                                   Eigen::Vector2f(4.0f, 0.0f) };
+  const float curvatureApprxDist = 1.f;
+  const float curvatureCritical = 0.5f;
+  const float curvatureMax = 10.f;
+  const float velocityMin = 1.0f;
+  const float velocityMax = 2.0f;
+  const float velocityPrev = 1.234f;
+  EXPECT_EQ(velocityMax, estimateVelocity(waypoints, 0, curvatureApprxDist, curvatureCritical, curvatureMax,
+                                          velocityMin, velocityMax, velocityPrev));
+  EXPECT_GT(velocityMax, estimateVelocity(waypoints, 1, curvatureApprxDist, curvatureCritical, curvatureMax,
+                                          velocityMin, velocityMax, velocityPrev));
+  EXPECT_LT(velocityMin, estimateVelocity(waypoints, 1, curvatureApprxDist, curvatureCritical, curvatureMax,
+                                          velocityMin, velocityMax, velocityPrev));
+  EXPECT_EQ(0, estimateVelocity(waypoints, 2, curvatureApprxDist, curvatureCritical, curvatureMax, velocityMin,
+                                velocityMax, velocityPrev));
+}
+
+TEST(RobotPlannerUtilsTest, estimateVelocityNoEnoughLength)
+{
+  const std::vector<Eigen::Vector2f> waypoints = { Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(0.f, 0.f),
+                                                   Eigen::Vector2f(0.f, 0.f) };
+  const float curvatureApprxDist = 0.1f;
+  const float curvatureCritical = 0.5f;
+  const float curvatureMax = 10.f;
+  const float velocityMin = 1.0f;
+  const float velocityMax = 2.0f;
+  const float velocityPrev = 1.234f;
+  EXPECT_EQ(velocityPrev, estimateVelocity(waypoints, 1, curvatureApprxDist, curvatureCritical, curvatureMax,
+                                           velocityMin, velocityMax, velocityPrev));
+}
+
+TEST(RobotPlannerUtilsTest, estimateVelocityApproximation)
+{
+  const std::vector<Eigen::Vector2f> waypoints = { Eigen::Vector2f(0.0f, 0.0f), Eigen::Vector2f(2.0f, 2.0f),
+                                                   Eigen::Vector2f(2.0f, 2.0f), Eigen::Vector2f(2.0f, 2.0f),
+                                                   Eigen::Vector2f(4.0f, 0.0f) };
+  const float curvatureApprxDist = 1.f;
+  const float curvatureCritical = 0.5f;
+  const float curvatureMax = 10.f;
+  const float velocityMin = 1.0f;
+  const float velocityMax = 2.0f;
+  const float velocityPrev = 1.234f;
+  const float v1 = estimateVelocity(waypoints, 1, curvatureApprxDist, curvatureCritical, curvatureMax, velocityMin,
+                                    velocityMax, velocityPrev);
+  const float v2 = estimateVelocity(waypoints, 2, curvatureApprxDist, curvatureCritical, curvatureMax, velocityMin,
+                                    velocityMax, velocityPrev);
+  const float v3 = estimateVelocity(waypoints, 3, curvatureApprxDist, curvatureCritical, curvatureMax, velocityMin,
+                                    velocityMax, velocityPrev);
+  EXPECT_TRUE(velocityMin < v1 && v1 < velocityMax);
+  EXPECT_TRUE(v1 != velocityPrev);
+  EXPECT_TRUE(v1 == v2 && v2 == v3);
 }
 
 TEST(RobotPlannerUtilsTest, estimateNewCoveredGridIdsToNext)
