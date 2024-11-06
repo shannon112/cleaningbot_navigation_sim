@@ -102,10 +102,34 @@ TEST(RobotPlannerUtilsTest, constructMapWithPaddingForGadget)
 
 TEST(RobotPlannerUtilsTest, constructMapWithoutPadding)
 {
+  const std::array<Eigen::Vector2f, 4> robotContourPoints = { Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(0.f, 0.f),
+                                                              Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(0.f, 0.f) };
+  const std::array<Eigen::Vector2f, 2>& robotGadgetPoints = { Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(0.f, 0.f) };
+  const std::vector<Eigen::Vector2f> waypoints = { Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(1.f, 0.f),
+                                                   Eigen::Vector2f(0.f, 1.f) };
+  const float gridSize = 1.f;
+  OccupancyMap map = constructMap(robotContourPoints, robotGadgetPoints, waypoints, gridSize);
+  EXPECT_EQ(map.gridSize, 1.f);
+  EXPECT_EQ(map.origin[0], 0.f);
+  EXPECT_EQ(map.origin[1], 0.f);
+  EXPECT_EQ(map.grids.rows(), 2);
+  EXPECT_EQ(map.grids.cols(), 2);
 }
 
 TEST(RobotPlannerUtilsTest, constructMap)
 {
+  const std::array<Eigen::Vector2f, 4> robotContourPoints = { Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(0.f, 0.f),
+                                                              Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(0.f, 0.f) };
+  const std::array<Eigen::Vector2f, 2>& robotGadgetPoints = { Eigen::Vector2f(0.f, 1.f), Eigen::Vector2f(0.f, -1.f) };
+  const std::vector<Eigen::Vector2f> waypoints = { Eigen::Vector2f(0.f, 0.f), Eigen::Vector2f(1.f, 0.f),
+                                                   Eigen::Vector2f(0.f, 1.f) };
+  const float gridSize = 1.f;
+  OccupancyMap map = constructMap(robotContourPoints, robotGadgetPoints, waypoints, gridSize);
+  EXPECT_EQ(map.gridSize, 1.f);
+  EXPECT_EQ(map.origin[0], -1.f);
+  EXPECT_EQ(map.origin[1], -1.f);
+  EXPECT_EQ(map.grids.rows(), 4);
+  EXPECT_EQ(map.grids.cols(), 4);
 }
 
 TEST(RobotPlannerUtilsTest, simplifyTrajectoryInvaid)
