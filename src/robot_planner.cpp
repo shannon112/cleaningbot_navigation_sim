@@ -32,10 +32,10 @@ void RobotPlanner::loadPlanJson(const std::shared_ptr<cleaningbot_navigation_sim
   }
 
   // prepare
-  waypoints_ = simplifyTrajectory(waypoints_, trajectoryDownSamplingDist);
+  waypoints_ = simplifyTrajectory(waypoints_, trajectoryDownSamplingDist_);
   RCLCPP_INFO(this->get_logger(), "After simplification, there are %zu waypoints", waypoints_.size());
 
-  waypoints_ = resampleTrajectory(waypoints_, trajectoryUpSamplingDist);
+  waypoints_ = resampleTrajectory(waypoints_, trajectoryUpSamplingNumIntervals_);
   RCLCPP_INFO(this->get_logger(), "After resampling, there are %zu waypoints", waypoints_.size());
 
   map_ = constructMap(robotContourPoints_, robotGadgetPoints_, waypoints_, mapGridSize_);

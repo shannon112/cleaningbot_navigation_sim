@@ -22,6 +22,9 @@ inline OccupancyMap constructMap(const std::array<Eigen::Vector2f, 4>& robotCont
                                  const std::vector<Eigen::Vector2f>& waypoints, const float mapGridSize_)
 {
   OccupancyMap map;
+  if (waypoints.empty() || mapGridSize_ < std::numeric_limits<float>::epsilon())
+    return map;
+
   map.gridSize = mapGridSize_;
 
   float leftMost = std::numeric_limits<float>::max();
@@ -42,9 +45,8 @@ inline OccupancyMap constructMap(const std::array<Eigen::Vector2f, 4>& robotCont
   const float linkMaxLen = *std::max_element(robotPointLens.begin(), robotPointLens.end());
   const Eigen::Vector2f bottomleftMostPoint(leftMost - linkMaxLen, bottomMost - linkMaxLen);
   const Eigen::Vector2f topRightMostPoint(rightMost + linkMaxLen, topMost + linkMaxLen);
-
-  const Eigen::Vector2i bottomleftMostGridIdx = (bottomleftMostPoint / map.gridSize).cast<int>();
-  const Eigen::Vector2i topRightGridIdx = (topRightMostPoint / map.gridSize).cast<int>();
+  const Eigen::Vector2i bottomleftMostGridIdx = (bottomleftMostPoint / map.gridSize).array().floor().cast<int>();
+  const Eigen::Vector2i topRightGridIdx = (topRightMostPoint / map.gridSize).array().floor().cast<int>();
   map.origin = bottomleftMostGridIdx.cast<float>() * map.gridSize;
 
   const Eigen::Vector2i heightWidth = topRightGridIdx - bottomleftMostGridIdx + Eigen::Vector2i(1, 1);
@@ -56,7 +58,7 @@ inline OccupancyMap constructMap(const std::array<Eigen::Vector2f, 4>& robotCont
 inline std::vector<Eigen::Vector2f> simplifyTrajectory(const std::vector<Eigen::Vector2f>& waypoints,
                                                        const float trajectoryDownSamplingDist)
 {
-  if (waypoints.empty())
+  if (waypoints.empty() || trajectoryDownSamplingDist <= 0.f)
     return {};
   std::vector<Eigen::Vector2f> waypointsSim = { waypoints[0] };
   for (std::size_t i = 1; i < waypoints.size(); i++)
@@ -71,18 +73,20 @@ inline std::vector<Eigen::Vector2f> simplifyTrajectory(const std::vector<Eigen::
 
 // upsample the trajectory using cubic interpolation
 inline std::vector<Eigen::Vector2f> resampleTrajectory(const std::vector<Eigen::Vector2f>& waypoints,
-                                                       const float trajectoryUpSamplingDist)
+                                                       const std::size_t trajectoryUpSamplingNumIntervals)
 {
-  if (waypoints.empty())
+  if (waypoints.empty() || trajectoryUpSamplingNumIntervals < 2)
     return {};
   std::vector<Eigen::Vector2f> waypointsRe = {};
   for (std::size_t i = 0; i < waypoints.size() - 1; i++)
   {
     waypointsRe.push_back(waypoints[i]);
-    const std::size_t numSamples = ((waypoints[i] - waypoints[i + 1]).norm()) / trajectoryUpSamplingDist;
-    for (std::size_t j = 0; j < numSamples - 1; j++)
+
+    // fixed sampling rate
+    // assume that no rotation info given, so we sample it finer for better approximation robot pose
+    for (std::size_t j = 0; j < trajectoryUpSamplingNumIntervals - 1; j++)
     {
-      float t = (j + 1.f) / numSamples;
+      float t = (j + 1.f) / trajectoryUpSamplingNumIntervals;
       // cubic Hermite spline interpolation
       const Eigen::Vector2f p0 = waypoints[i];
       const Eigen::Vector2f p1 = waypoints[i + 1];
@@ -166,10 +170,9 @@ inline float estimateVelocity(const std::vector<Eigen::Vector2f>& waypoints, con
 }
 
 // estimate the grids inside the covered area using cross product
-std::vector<Eigen::Vector2i> estimateNewCoveredGridIdsToNext(const OccupancyMap& map,
-                                                             const std::vector<Eigen::Vector2f>& waypoints,
-                                                             const std::size_t curIdx,
-                                                             const std::array<Eigen::Vector2f, 2>& robotGadgetPoints)
+inline std::vector<Eigen::Vector2i>
+estimateNewCoveredGridIdsToNext(const OccupancyMap& map, const std::vector<Eigen::Vector2f>& waypoints,
+                                const std::size_t curIdx, const std::array<Eigen::Vector2f, 2>& robotGadgetPoints)
 {
   if (curIdx == waypoints.size() - 1)
   {

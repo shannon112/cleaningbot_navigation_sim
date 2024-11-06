@@ -7,7 +7,7 @@ struct OccupancyMap
 {
   Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> grids;
   Eigen::Vector2f origin = { 0.f, 0.f };
-  float gridSize = 0.01f;
+  float gridSize = 0.f;
 };
 
 #endif

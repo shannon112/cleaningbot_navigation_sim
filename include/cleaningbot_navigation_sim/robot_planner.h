@@ -52,8 +52,8 @@ private:
   const float velocityMax_ = 1.1f;
   const std::chrono::milliseconds samplingTime_ = 5ms;
   const float mapGridSize_ = 0.01f;
-  const float trajectoryDownSamplingDist = 2.f * mapGridSize_;
-  const float trajectoryUpSamplingDist = 0.5f * mapGridSize_;
+  const float trajectoryDownSamplingDist_ = 2.f * mapGridSize_;
+  const std::size_t trajectoryUpSamplingNumIntervals_ = 50;
 };
 
 #endif  // ROBOT_PLANNER_H
