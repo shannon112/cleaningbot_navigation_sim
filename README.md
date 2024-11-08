@@ -23,7 +23,7 @@ ros2 action send_goal /load_plan_json cleaningbot_navigation_sim/action/LoadPlan
 format cmd
 ```
 cd /path/to/cleaningbot_navigation_sim
-bash format.bash
+bash format.sh
 ```
 test cmd
 ```
